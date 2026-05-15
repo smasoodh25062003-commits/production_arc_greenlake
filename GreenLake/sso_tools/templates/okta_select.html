@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HPE Role String Generator - Okta</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+</head>
+<body class="chooser-page">
+  <script>window.__SSO_TOOLS_ROOT__={{ (request.script_root or "")|tojson }};</script>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-dot" aria-hidden="true"></span>
+      <h1><span class="brand-accent">HPE</span> Role String Generator</h1>
+    </div>
+    <div class="topbar-actions">
+      <a href="/GreenLakeTools.html" class="topbar-platform-link">← Platform Tools</a>
+      <button type="button" id="themeToggle" class="icon-btn" aria-label="Toggle theme" title="Toggle theme">
+        <span class="theme-icon theme-icon-light">☀</span>
+        <span class="theme-icon theme-icon-dark">☾</span>
+      </button>
+    </div>
+  </header>
+
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <a href="{{ url_for('landing') }}">Home</a>
+    <span class="crumb-sep" aria-hidden="true">/</span>
+    <span class="crumb-current">New configuration</span>
+  </nav>
+
+  <main class="chooser-main">
+    <section class="chooser-hero">
+      <span class="eyebrow">New configuration &middot; Okta</span>
+      <h2 class="chooser-title">Are you using group mappings?</h2>
+      <p class="chooser-sub">Pick the variant that matches how your Okta tenant maps roles into HPE.</p>
+    </section>
+
+    <div class="chooser-grid chooser-grid-2" role="list">
+      <a class="chooser-card chooser-card-available" href="{{ url_for('okta_no_groups') }}" role="listitem">
+        <div class="chooser-badge" aria-hidden="true">A</div>
+        <div class="chooser-body">
+          <div class="chooser-row">
+            <h3>Without groups</h3>
+            <span class="pill pill-success">Default</span>
+          </div>
+          <p class="chooser-desc">Generates strings that use a zero UUID in each block. Use when roles are assigned directly to users in Okta.</p>
+          <code class="chooser-preview">version_1#&lt;workspace&gt;:<span class="muted">0000...0000</span>:&lt;role&gt;:&lt;scope&gt;</code>
+        </div>
+        <div class="chooser-cta">Open generator
+          <span class="arrow" aria-hidden="true">→</span>
+        </div>
+      </a>
+
+      <a class="chooser-card chooser-card-available" href="{{ url_for('okta_with_groups') }}" role="listitem">
+        <div class="chooser-badge" aria-hidden="true">B</div>
+        <div class="chooser-body">
+          <div class="chooser-row">
+            <h3>With groups</h3>
+            <span class="pill pill-info">Recommended</span>
+          </div>
+          <p class="chooser-desc">Generates strings that include a real Okta group UUID in place of the zero UUID. Use when roles are assigned via group mappings.</p>
+          <code class="chooser-preview">version_1#&lt;workspace&gt;:<span class="accent">&lt;group-uuid&gt;</span>:&lt;role&gt;:&lt;scope&gt;</code>
+        </div>
+        <div class="chooser-cta">Open generator
+          <span class="arrow" aria-hidden="true">→</span>
+        </div>
+      </a>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      const KEY = "okta-role-string-theme";
+      function apply(t) {
+        document.documentElement.setAttribute("data-theme", t);
+        try { localStorage.setItem(KEY, t); } catch (e) {}
+      }
+      let t = null;
+      try { t = localStorage.getItem(KEY); } catch (e) {}
+      if (!t) t = (window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+      apply(t);
+      const btn = document.getElementById("themeToggle");
+      if (btn) btn.addEventListener("click", () => {
+        apply(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
+      });
+    })();
+  </script>
+</body>
+</html>

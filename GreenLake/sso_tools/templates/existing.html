@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HPE Role String Generator - SAML diagnostics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+</head>
+<body class="chooser-page">
+  <script>window.__SSO_TOOLS_ROOT__={{ (request.script_root or "")|tojson }};</script>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-dot" aria-hidden="true"></span>
+      <h1><span class="brand-accent">HPE</span> Role String Generator</h1>
+    </div>
+    <div class="topbar-actions">
+      <a href="/GreenLakeTools.html" class="topbar-platform-link">&larr; Platform Tools</a>
+      <div class="saml-topbar-api" title="Validator API status">
+        <span id="samlApiDot" class="saml-api-dot" aria-hidden="true"></span>
+        <span class="saml-topbar-api-label">API</span>
+      </div>
+      <button type="button" id="themeToggle" class="icon-btn" aria-label="Toggle theme" title="Toggle theme">
+        <span class="theme-icon theme-icon-light">&#9728;</span>
+        <span class="theme-icon theme-icon-dark">&#9790;</span>
+      </button>
+    </div>
+  </header>
+
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <a href="{{ url_for('landing') }}">Home</a>
+    <span class="crumb-sep" aria-hidden="true">/</span>
+    <span class="crumb-current">SAML diagnostics</span>
+  </nav>
+
+  <main class="saml-page saml-stack">
+    <section class="chooser-hero saml-hero-tight">
+      <span class="eyebrow">Troubleshoot SSO login</span>
+      <h2 class="chooser-title">Diagnose a user's SAML assertion</h2>
+      <p class="chooser-sub">
+        Upload a capture from a failed (or successful) GreenLake login. The tool extracts the SAML response and runs nine checks against HPE GreenLake expectations: entity ID, ACS URL, certificates, NameID, and profile attributes.
+      </p>
+    </section>
+
+    <div class="saml-layout">
+      <aside class="saml-guide" aria-label="How to use this tool">
+        <div class="saml-guide-card">
+          <h3 class="saml-guide-title">How it works</h3>
+          <ol class="saml-step-list">
+            <li>
+              <span class="saml-step-list-num">1</span>
+              <span>Capture a login attempt with <strong>SAML-tracer</strong> (browser extension) or export a HAR from DevTools while the user signs in.</span>
+            </li>
+            <li>
+              <span class="saml-step-list-num">2</span>
+              <span>Upload the export on the right. Parsing stays on this server; nothing is sent elsewhere.</span>
+            </li>
+            <li>
+              <span class="saml-step-list-num">3</span>
+              <span>Review checks one at a time. <strong class="saml-legend-fail">Fail</strong> = fix in IdP config. <strong class="saml-legend-manual">Review</strong> = compare the value to the user's GreenLake SSO mapping.</span>
+            </li>
+          </ol>
+        </div>
+
+        <div class="saml-guide-card saml-guide-formats">
+          <h3 class="saml-guide-title">Accepted files</h3>
+          <ul class="saml-format-list">
+            <li><span class="pill">.json</span> SAML-tracer export</li>
+            <li><span class="pill">.har</span> Browser network capture</li>
+            <li><span class="pill">.xml</span> Raw SAML response or IdP metadata</li>
+            <li><span class="pill">.txt</span> Base64 SAML or URL-encoded POST body</li>
+          </ul>
+          <p class="saml-guide-note">Plain server log lines without an embedded SAML payload are not supported. Use a tracer or HAR instead.</p>
+        </div>
+      </aside>
+
+      <section class="saml-import" aria-label="Upload SAML capture">
+        <p class="saml-section-label">Upload</p>
+        <div id="samlDropzone" class="saml-dropzone" role="button" tabindex="0" aria-label="Drop SAML capture here or click to browse">
+          <div class="saml-dropzone-ico" aria-hidden="true">&#9112;</div>
+          <div class="saml-dropzone-text">
+            <div class="saml-dropzone-title">Drop your SAML capture here, or click to browse</div>
+            <div class="saml-dropzone-sub">JSON from SAML-tracer, HAR, XML, or encoded text. Processed locally via <code>/api/parse</code>.</div>
+            <div class="saml-format-chips" aria-hidden="true">
+              <span class="pill">.json</span>
+              <span class="pill">.har</span>
+              <span class="pill">.xml</span>
+              <span class="pill">.txt</span>
+            </div>
+          </div>
+        </div>
+        <input type="file" id="samlFileInput" accept=".xml,.json,.har,.txt,text/xml,application/xml,application/json,text/plain" hidden />
+
+        <div id="samlLoaded" class="saml-loaded" hidden>
+          <span class="saml-loaded-label">Selected file</span>
+          <span id="samlLoadedName" class="saml-loaded-name"></span>
+          <span id="samlLoadedSize" class="saml-loaded-size"></span>
+        </div>
+
+        <div class="saml-actions">
+          <button type="button" id="samlRunBtn" class="btn btn-primary" disabled>Run checks</button>
+          <button type="button" id="samlResetBtn" class="btn btn-secondary">Reset</button>
+          <button type="button" id="samlExportBtn" class="btn btn-ghost" disabled title="Download a text summary after checks complete">Export report</button>
+        </div>
+      </section>
+    </div>
+
+    <section id="samlDashboard" class="saml-dashboard" hidden aria-live="polite">
+      <p class="saml-section-label">Summary</p>
+      <div class="saml-dashboard-inner">
+        <div id="samlProgressRing" class="saml-progress-ring">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <circle class="ring-bg" cx="50" cy="50" r="36" />
+            <circle id="samlRingFg" class="ring-fg" cx="50" cy="50" r="36" />
+          </svg>
+          <span id="samlRingText" class="ring-text">0%</span>
+        </div>
+        <div class="saml-summary">
+          <div id="samlVerdict" class="saml-verdict is-ready">
+            <span class="saml-verdict-dot" aria-hidden="true"></span>
+            <span id="samlVerdictText">All checks passed</span>
+          </div>
+          <div id="samlCounters" class="saml-counters"></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="saml-results-head" aria-hidden="true">
+      <p class="saml-section-label">Check details</p>
+      <p class="saml-results-hint">Use <strong>Previous / Next</strong> to walk through each item. Filters narrow the list; <strong>Action</strong> shows only failures and items needing review.</p>
+    </div>
+
+    <div id="samlFilterBar" class="saml-filter-bar" role="toolbar" aria-label="Filter checks"></div>
+
+    <div id="samlResults" class="saml-results-wrap"></div>
+    <div id="samlEmpty" class="saml-empty is-hidden" role="status">
+      <div class="saml-empty-ico" aria-hidden="true">&#9678;</div>
+      <h3>No results yet</h3>
+      <p>Upload a SAML capture and click <strong>Run checks</strong>. Results appear here as a guided walkthrough, one check per screen.</p>
+    </div>
+  </main>
+
+  <div id="samlOverlay" class="saml-overlay" hidden>
+    <div class="saml-overlay-card">
+      <div class="saml-spinner" aria-hidden="true"></div>
+      <p class="saml-overlay-title">Analyzing SAML&hellip;</p>
+      <p class="saml-overlay-sub">Extracting the response and running GreenLake checks.</p>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/saml.js') }}"></script>
+</body>
+</html>

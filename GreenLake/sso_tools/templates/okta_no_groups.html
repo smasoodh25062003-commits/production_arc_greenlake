@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Okta - Without Groups</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=9" />
+</head>
+<body>
+  <!-- sso-tools okta-no-groups ui=v3-switches -->
+  <script>window.__SSO_TOOLS_ROOT__={{ (request.script_root or "")|tojson }};</script>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-dot" aria-hidden="true"></span>
+      <h1><span class="brand-accent">HPE</span> Role String Generator</h1>
+    </div>
+    <div class="topbar-actions">
+      <a href="/GreenLakeTools.html" class="topbar-platform-link">← Platform Tools</a>
+      <button type="button" id="themeToggle" class="icon-btn" aria-label="Toggle theme" title="Toggle theme">
+        <span class="theme-icon theme-icon-light">☀</span>
+        <span class="theme-icon theme-icon-dark">☾</span>
+      </button>
+    </div>
+  </header>
+
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <a href="{{ url_for('landing') }}">Home</a>
+    <span class="crumb-sep" aria-hidden="true">/</span>
+    <a href="{{ url_for('okta_select') }}">New configuration</a>
+    <span class="crumb-sep" aria-hidden="true">/</span>
+    <span class="crumb-current">Without groups</span>
+  </nav>
+
+  <main class="layout">
+    <section class="pane form-pane">
+      <form id="roleForm" class="builder-stack" novalidate>
+        <div id="statsBar" class="stats-bar" aria-live="polite">
+          <span class="stat-pill" id="statWorkspacesPill">
+            <span class="stat-num" id="statWorkspaces">0</span>
+            <span>workspaces</span>
+          </span>
+          <span class="stat-pill" id="statServicesPill">
+            <span class="stat-num" id="statServices">0</span>
+            <span>services</span>
+          </span>
+          <span class="stats-spacer"></span>
+          <span class="stats-status" id="statsStatus">Add a workspace to get started</span>
+        </div>
+
+        <div class="toggle-row">
+          <label class="switch">
+            <input type="checkbox" id="withOrgToggle" />
+            <span class="switch-track"><span class="switch-thumb"></span></span>
+          </label>
+          <div class="toggle-text">
+            <div class="toggle-label">Include organization</div>
+            <div class="toggle-hint">Prefix the string with an organization block</div>
+          </div>
+        </div>
+
+        <div id="orgSection" class="org-section tier-panel" hidden>
+          <div class="tier-panel-head">
+            <span class="step-badge" aria-hidden="true">1</span>
+            <div>
+              <div class="tier-title">Organization</div>
+              <div class="tier-sub">Optional prefix · <code>version_1#</code> org block before workspaces</div>
+            </div>
+          </div>
+          <div class="row row-2">
+            <div class="field">
+              <label for="organizationId">Organization ID</label>
+              <input
+                type="text"
+                id="organizationId"
+                placeholder="f25757f03de711f18466e2c30591efa6"
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </div>
+            <div class="field">
+              <label for="organizationRole">Organization Role</label>
+              <select id="organizationRole">
+                <option>Organization administrator</option>
+                <option>Organization Observer</option>
+                <option value="__custom__">Custom...</option>
+              </select>
+              <input type="text" id="customOrgRole" placeholder="Enter custom organization role" autocomplete="off" hidden />
+            </div>
+          </div>
+        </div>
+
+        <div class="builder-section">
+          <div class="builder-section-head">
+            <span class="step-badge" aria-hidden="true">2</span>
+            <div class="builder-section-titles">
+              <h2 class="builder-section-title">Workspaces <span class="muted" id="workspacesCount"></span></h2>
+              <p class="builder-section-sub">Each card is one segment in the string. Multiple workspaces are joined with <code>#</code>.</p>
+            </div>
+            <button type="button" class="btn btn-ghost btn-sm" id="addWorkspaceBtn">
+              <span class="plus">+</span> Add Workspace
+            </button>
+          </div>
+          <div class="hierarchy-tree">
+            <div id="workspacesList" class="workspaces-list"></div>
+          </div>
+        </div>
+
+        <div id="workspacesEmpty" class="empty-state" hidden>
+          <p>No workspaces yet.</p>
+          <button type="button" class="btn btn-link" id="addWorkspaceEmpty">Add a workspace</button>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">
+            Generate
+            <kbd class="kbd">⌘↵</kbd>
+          </button>
+          <button type="button" class="btn btn-secondary" id="resetBtn">Reset</button>
+        </div>
+      </form>
+    </section>
+
+    <aside class="pane output-pane">
+      <div class="output-head">
+        <h2>Output</h2>
+        <div class="chip-group">
+          <button type="button" class="chip" id="diagramBtn" title="Visual map of org, workspaces, and services">Diagram</button>
+          <button type="button" class="chip" id="copyBtn" title="Copy (⌘⇧C)">Copy</button>
+          <button type="button" class="chip" id="exportTxtBtn" title="Download as .txt">TXT</button>
+          <button type="button" class="chip" id="exportJsonBtn" title="Download as .json">JSON</button>
+        </div>
+      </div>
+
+      <pre id="output" class="output"><span class="placeholder">Add at least one workspace ID to see the string.</span></pre>
+
+      <details class="live-diagram" id="liveDiagram" open>
+        <summary class="live-diagram-head">
+          <h3>Live diagram</h3>
+          <span class="chev" aria-hidden="true">▾</span>
+        </summary>
+        <div class="live-diagram-toolbar" id="liveDiagramToolbar" role="toolbar" aria-label="Diagram controls">
+          <span class="toolbar-group" role="group" aria-label="Zoom">
+            <button type="button" data-action="zoom-out" title="Zoom out"><span class="toolbar-icon">−</span></button>
+            <button type="button" data-action="fit" title="Fit to view">Fit</button>
+            <button type="button" data-action="zoom-in" title="Zoom in"><span class="toolbar-icon">+</span></button>
+          </span>
+          <span class="toolbar-spacer"></span>
+          <button type="button" data-action="download" title="Download as SVG">↓ SVG</button>
+        </div>
+        <div id="liveDiagramMount" class="live-diagram-mount"></div>
+        <div class="live-diagram-legend" aria-label="Legend">
+          <span class="diagram-legend-item"><span class="diagram-legend-swatch swatch-root"></span>Root</span>
+          <span class="diagram-legend-item"><span class="diagram-legend-swatch swatch-org"></span>Org</span>
+          <span class="diagram-legend-item"><span class="diagram-legend-swatch swatch-ws"></span>Workspace</span>
+          <span class="diagram-legend-item"><span class="diagram-legend-swatch swatch-svc"></span>Service</span>
+          <span class="diagram-legend-item"><span class="diagram-legend-swatch swatch-out"></span>Role string</span>
+        </div>
+      </details>
+
+      <div id="status" class="status" role="status" aria-live="polite"></div>
+
+      <details class="history-details">
+        <summary>
+          <span>History</span>
+          <button type="button" class="chip chip-sm danger" id="clearHistoryBtn" title="Clear history">Clear</button>
+        </summary>
+        <ul id="historyList" class="history-list">
+          <li class="history-empty">No saved strings yet.</li>
+        </ul>
+      </details>
+    </aside>
+  </main>
+
+  <div id="diagramModal" class="diagram-modal" hidden>
+    <div class="diagram-modal-backdrop" data-close-diagram aria-hidden="true"></div>
+    <div class="diagram-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="diagramModalTitle">
+      <div class="diagram-modal-header">
+        <h2 id="diagramModalTitle">Role hierarchy</h2>
+        <button type="button" class="icon-btn" id="diagramModalClose" aria-label="Close diagram">✕</button>
+      </div>
+      <p class="diagram-modal-hint">Flow of organization (if enabled), workspaces, and services for your current draft.</p>
+      <div class="diagram-toolbar" id="diagramToolbar" role="toolbar" aria-label="Diagram controls">
+        <span class="toolbar-group" role="group" aria-label="Zoom">
+          <button type="button" data-action="zoom-out" title="Zoom out"><span class="toolbar-icon">−</span></button>
+          <button type="button" data-action="fit" title="Fit to view">Fit</button>
+          <button type="button" data-action="zoom-in" title="Zoom in"><span class="toolbar-icon">+</span></button>
+        </span>
+        <span class="toolbar-spacer"></span>
+        <button type="button" data-action="download" title="Download as SVG">↓ SVG</button>
+      </div>
+      <div id="diagramMount" class="diagram-mount"></div>
+      <div class="diagram-legend" aria-label="Legend">
+        <span class="diagram-legend-item"><span class="diagram-legend-swatch swatch-root"></span>Output (root)</span>
+        <span class="diagram-legend-item"><span class="diagram-legend-swatch swatch-org"></span>Organization</span>
+        <span class="diagram-legend-item"><span class="diagram-legend-swatch swatch-ws"></span>Workspace</span>
+        <span class="diagram-legend-item"><span class="diagram-legend-swatch swatch-svc"></span>Service</span>
+        <span class="diagram-legend-item"><span class="diagram-legend-swatch swatch-out"></span>Resulting role string</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="wsTypeModal" class="diagram-modal ws-type-modal" hidden>
+    <div class="diagram-modal-backdrop" data-close-ws-type aria-hidden="true"></div>
+    <div class="diagram-modal-dialog ws-type-dialog" role="dialog" aria-modal="true" aria-labelledby="wsTypeModalTitle">
+      <div class="diagram-modal-header">
+        <h2 id="wsTypeModalTitle">New workspace</h2>
+        <button type="button" class="icon-btn" id="wsTypeModalClose" aria-label="Close">✕</button>
+      </div>
+      <p class="diagram-modal-hint">Pick the workspace type. <strong>MSP</strong> uses <code>version_2</code> with <code>|MSP|</code> / optional <code>|TENANT|</code>. <strong>Tenant</strong> uses <code>version_1</code> with <code>|TENANT|</code> on every role; use <strong>Workspace ID</strong> as the first colon segment (same field as other types).</p>
+      <div class="ws-type-grid">
+        <button type="button" class="ws-type-card" data-ws-type-choice="standalone">
+          <span class="ws-type-badge">A</span>
+          <span class="ws-type-title">Standalone</span>
+          <span class="ws-type-desc">Single workspace block — keeps the existing <code>version_1#</code> format.</span>
+          <code class="ws-type-preview">version_1#&lt;workspace&gt;:&lt;group&gt;:&lt;role&gt;:&lt;scope&gt;</code>
+        </button>
+        <button type="button" class="ws-type-card" data-ws-type-choice="msp">
+          <span class="ws-type-badge ws-type-badge-msp">M</span>
+          <span class="ws-type-title">MSP <span class="pill pill-info">version_2</span></span>
+          <span class="ws-type-desc">Adds <code>|MSP|</code> on every role and lets each role / service target either the MSP only or the whole tenant.</span>
+          <code class="ws-type-preview">version_2#…<span class="accent">|MSP|</span>…[<span class="accent">|TENANT|</span>…]</code>
+        </button>
+        <button type="button" class="ws-type-card" data-ws-type-choice="tenant">
+          <span class="ws-type-badge ws-type-badge-tenant">T</span>
+          <span class="ws-type-title">Tenant <span class="pill pill-muted">version_1</span></span>
+          <span class="ws-type-desc"><code>|TENANT|</code> is appended to the workspace role and each service role. Use <strong>Workspace ID</strong> as the first colon segment (same field as other types).</span>
+          <code class="ws-type-preview">version_1#&lt;workspace&gt;:…:&lt;role&gt;<span class="accent">|TENANT|</span>:…</code>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <template id="workspaceTemplate">
+    <div class="workspace-block workspace-card" data-ws-type="standalone">
+      <div class="workspace-block-head">
+        <button type="button" class="collapse-toggle ws-collapse" aria-label="Collapse or expand workspace" title="Collapse / expand">
+          <span class="chev" aria-hidden="true">▾</span>
+        </button>
+        <div class="workspace-head-info">
+          <span class="status-dot ws-status" aria-hidden="true"></span>
+          <span class="ws-block-index">1</span>
+          <span class="ws-type-pill pill ws-type-pill-standalone" data-role="ws-type-pill" title="Workspace type">Standalone</span>
+          <span class="card-summary ws-summary" aria-hidden="true"></span>
+        </div>
+        <div class="workspace-head-actions">
+          <button type="button" class="icon-btn icon-btn-sm ws-change-type" title="Change workspace type" aria-label="Change workspace type">⇄</button>
+          <button type="button" class="icon-btn icon-btn-sm duplicate-btn duplicate-workspace" title="Duplicate workspace" aria-label="Duplicate workspace">⧉</button>
+          <button type="button" class="icon-btn icon-btn-sm remove-workspace" title="Remove workspace" aria-label="Remove workspace">✕</button>
+        </div>
+      </div>
+      <div class="workspace-block-body">
+        <div class="field hero-field">
+          <label>Workspace ID</label>
+          <input
+            type="text"
+            class="ws-workspace-id"
+            placeholder="96bc71e63de711f19ac642886fd8429d"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </div>
+        <div class="toggle-row ws-layout-toggle-row">
+          <label class="switch">
+            <input type="checkbox" class="ws-msp-switch" />
+            <span class="switch-track"><span class="switch-thumb"></span></span>
+          </label>
+          <div class="toggle-text">
+            <div class="toggle-label">MSP workspace</div>
+            <div class="toggle-hint">When on, this workspace uses <code>|MSP|</code> markers and can add <code>|TENANT|</code> (see switches below and on each service). Off = classic standalone block.</div>
+          </div>
+        </div>
+        <div class="row row-2">
+          <div class="field">
+            <label>Role</label>
+            <select class="ws-role">
+              <option>Workspace Administrator</option>
+              <option>Workspace Read Only</option>
+              <option>Workspace Operator</option>
+              <option>Super Administrator</option>
+              <option value="__custom__">Custom...</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Scope</label>
+            <input type="text" class="ws-scope" value="{{ default_scope }}" autocomplete="off" />
+          </div>
+        </div>
+        <div class="field ws-custom-role-wrap" hidden>
+          <label>Custom Role</label>
+          <input type="text" class="ws-custom-role" placeholder="Enter custom role" autocomplete="off" />
+        </div>
+        <div class="ws-msp-only" hidden>
+          <div class="toggle-row">
+            <label class="switch">
+              <input type="checkbox" class="ws-tenant-toggle" checked />
+              <span class="switch-track"><span class="switch-thumb"></span></span>
+            </label>
+            <div class="toggle-text">
+              <div class="toggle-label">Whole tenant for workspace role</div>
+              <div class="toggle-hint">When on, adds a <code>|TENANT|</code> block after <code>|MSP|</code> for this workspace role. Turn off for MSP-level only.</div>
+            </div>
+          </div>
+        </div>
+        <div class="section-head section-head-sm">
+          <h3>Services <span class="muted ws-service-count"></span></h3>
+          <button type="button" class="btn btn-ghost btn-xs ws-add-service">
+            <span class="plus">+</span> Add Service
+          </button>
+        </div>
+        <div class="ws-services-list services-list"></div>
+        <div class="empty-state ws-services-empty" hidden>
+          <p class="muted" style="margin:0;font-size:0.85rem;">No services for this workspace.</p>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <template id="serviceTemplate">
+    <div class="service-row">
+      <div class="service-index">1</div>
+      <div class="service-fields">
+        <div class="field">
+          <label>Service</label>
+          <select class="svc-picker"></select>
+        </div>
+        <div class="field">
+          <label>ID</label>
+          <input type="text" class="svc-id" placeholder="Auto-filled" autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="field">
+          <label>Role</label>
+          <select class="svc-role-select"></select>
+          <input type="text" class="svc-role-custom" placeholder="Enter custom role" autocomplete="off" hidden />
+        </div>
+        <div class="field field-scope">
+          <label>Scope</label>
+          <input type="text" class="svc-scope" value="{{ default_scope }}" autocomplete="off" />
+        </div>
+        <div class="toggle-row svc-msp-only svc-msp-row workspace-svc-tenant-row" hidden>
+          <label class="switch switch-sm">
+            <input type="checkbox" class="svc-tenant-toggle" checked />
+            <span class="switch-track"><span class="switch-thumb"></span></span>
+          </label>
+          <div class="toggle-text">
+            <div class="toggle-label">Whole tenant for this service</div>
+            <div class="toggle-hint">When off, only the MSP <code>|MSP|</code> block is emitted for this service (no <code>|TENANT|</code>).</div>
+          </div>
+        </div>
+      </div>
+      <button type="button" class="icon-btn icon-btn-sm remove-service" title="Remove service" aria-label="Remove service">✕</button>
+    </div>
+  </template>
+
+  <script>
+    window.__APP_CONFIG__ = {
+      defaultRole: {{ default_role|tojson }},
+      defaultScope: {{ default_scope|tojson }},
+      zeroUuid: {{ zero_uuid|tojson }},
+      withGroups: false,
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+  <script src="{{ url_for('static', filename='js/role-diagram.js') }}?v=9"></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}?v=9"></script>
+</body>
+</html>

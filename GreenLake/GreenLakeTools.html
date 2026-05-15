@@ -10,22 +10,24 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --hpe-green:      #01a982;
-      --hpe-green-dim:  #00856a;
-      --hpe-green-glow: rgba(1,169,130,0.18);
-      --hpe-cyan:       #00c8ff;
-      --hpe-cyan-glow:  rgba(0,200,255,0.15);
-      --hpe-purple:     #7630ea;
-      --black:          #050810;
-      --surface:        #0b0f1a;
-      --panel:          #0f1424;
-      --panel-alt:      #131828;
-      --border:         rgba(255,255,255,0.07);
-      --border-bright:  rgba(255,255,255,0.14);
-      --text:           #f0f4ff;
-      --text-secondary: #a8b4cc;
-      --muted:          #5a6580;
+      --hpe-green:      #01A982;
+      --hpe-green-dim:  #00755A;
+      --hpe-green-glow: rgba(1,169,130,0.10);
+      --hpe-cyan:       #0D7AC7;
+      --hpe-cyan-glow:  rgba(13,122,199,0.08);
+      --hpe-purple:     #6A30C7;
+      --black:          #FFFFFF;
+      --surface:        #F7F7F7;
+      --panel:          #FFFFFF;
+      --panel-alt:      #F2F2F2;
+      --border:         #D5D5D5;
+      --border-bright:  #B0B0B0;
+      --text:           #2C2C2C;
+      --text-secondary: #555555;
+      --muted:          #777777;
       --white:          #ffffff;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.06);
+      --shadow-md: 0 2px 4px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.08);
     }
 
     html { scroll-behavior: smooth; }
@@ -33,8 +35,10 @@
       background: var(--black);
       color: var(--text);
       font-family: 'Inter', system-ui, sans-serif;
+      font-weight: 500;
       overflow-x: hidden;
       min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
     }
 
     /* ─── CANVAS BACKGROUND ─────────────────────────────────────────── */
@@ -58,23 +62,23 @@
       border-radius: 50%;
       filter: blur(120px);
       opacity: 0;
-      animation: blobPulse 12s ease-in-out infinite;
+      animation: blobPulse 18s ease-in-out infinite;
     }
     .aurora-blob:nth-child(1) {
       width: 700px; height: 700px;
-      background: radial-gradient(circle, rgba(1,169,130,0.22) 0%, transparent 70%);
+      background: radial-gradient(circle, rgba(1,169,130,0.10) 0%, transparent 70%);
       top: -200px; left: -200px;
       animation-delay: 0s; animation-duration: 14s;
     }
     .aurora-blob:nth-child(2) {
       width: 500px; height: 500px;
-      background: radial-gradient(circle, rgba(0,200,255,0.15) 0%, transparent 70%);
+      background: radial-gradient(circle, rgba(13,122,199,0.08) 0%, transparent 70%);
       top: 40%; right: -100px;
       animation-delay: 3s; animation-duration: 18s;
     }
     .aurora-blob:nth-child(3) {
       width: 600px; height: 600px;
-      background: radial-gradient(circle, rgba(118,48,234,0.12) 0%, transparent 70%);
+      background: radial-gradient(circle, rgba(106,48,199,0.06) 0%, transparent 70%);
       bottom: -150px; left: 30%;
       animation-delay: 6s; animation-duration: 16s;
     }
@@ -93,8 +97,8 @@
       z-index: 0;
       pointer-events: none;
       background-image:
-        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+        linear-gradient(rgba(0,0,0,0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,0,0,0.035) 1px, transparent 1px);
       background-size: 60px 60px;
       mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 100%);
     }
@@ -125,7 +129,7 @@
       content: '';
       position: absolute;
       inset: 0;
-      background: rgba(5, 8, 16, 0.6);
+      background: rgba(255, 255, 255, 0.88);
       backdrop-filter: blur(20px) saturate(180%);
       -webkit-backdrop-filter: blur(20px) saturate(180%);
       border-bottom: 1px solid var(--border);
@@ -133,7 +137,7 @@
       transition: background 0.4s ease;
     }
     .header.scrolled::before {
-      background: rgba(5, 8, 16, 0.88);
+      background: rgba(255, 255, 255, 0.95);
       border-bottom-color: var(--border-bright);
     }
 
@@ -153,7 +157,7 @@
       transition: transform 0.3s ease;
     }
     .logo-area:hover .hpe-badge { transform: rotate(30deg) scale(1.1); }
-    .hpe-badge svg { color: #000; }
+    .hpe-badge svg { color: #FFFFFF; }
 
     .logo-text-group { display: flex; flex-direction: column; gap: 1px; }
     .logo-eyebrow {
@@ -293,7 +297,7 @@
       gap: 10px;
       padding: 14px 32px;
       background: var(--hpe-green);
-      color: #000;
+      color: #FFFFFF;
       font-size: 14px;
       font-weight: 700;
       letter-spacing: -0.01em;
@@ -309,33 +313,35 @@
       content: '';
       position: absolute;
       inset: 0;
-      background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%);
+      background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 50%);
       opacity: 0;
       transition: opacity 0.3s ease;
     }
     .btn-primary:hover::before { opacity: 1; }
     .btn-primary:hover {
       transform: translateY(-2px);
-      box-shadow: 0 16px 40px rgba(1,169,130,0.4);
+      box-shadow: 0 8px 24px rgba(1,169,130,0.35);
+      background: var(--hpe-green-dim);
     }
     .btn-ghost {
       display: inline-flex;
       align-items: center;
       gap: 8px;
       padding: 14px 28px;
-      color: var(--text-secondary);
+      color: var(--text);
       font-size: 14px;
-      font-weight: 500;
+      font-weight: 700;
       border: 1px solid var(--border-bright);
       border-radius: 4px;
+      background: #FFFFFF;
       cursor: pointer;
       text-decoration: none;
       transition: all 0.3s ease;
     }
     .btn-ghost:hover {
-      border-color: var(--hpe-green);
-      color: var(--hpe-green);
-      background: var(--hpe-green-glow);
+      border-color: var(--text);
+      color: var(--text);
+      background: var(--surface);
     }
 
     /* ─── STEPS GUIDE ────────────────────────────────────────────────── */
@@ -586,22 +592,22 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(5,8,16,0);
+      background: rgba(255,255,255,0);
       transition: background 0.35s ease;
     }
     .zoom-hint-icon {
       width: 52px; height: 52px;
       border-radius: 50%;
-      background: rgba(5,8,16,0.7);
+      background: rgba(44,44,44,0.85);
       backdrop-filter: blur(8px);
-      border: 1px solid rgba(255,255,255,0.18);
+      border: 1px solid rgba(0,0,0,0.15);
       display: flex; align-items: center; justify-content: center;
       color: #fff;
       opacity: 0;
       transform: scale(0.6);
       transition: all 0.35s cubic-bezier(0.22,1,0.36,1);
     }
-    .step-img-frame:hover .zoom-hint { background: rgba(5,8,16,0.25); }
+    .step-img-frame:hover .zoom-hint { background: rgba(0,0,0,0.12); }
     .step-img-frame:hover .zoom-hint-icon {
       opacity: 1;
       transform: scale(1);
@@ -618,7 +624,7 @@
       gap: 12px;
       background: repeating-linear-gradient(
         45deg, transparent, transparent 12px,
-        rgba(255,255,255,0.01) 12px, rgba(255,255,255,0.01) 24px
+        rgba(0,0,0,0.02) 12px, rgba(0,0,0,0.02) 24px
       );
     }
     .step-img-placeholder svg { opacity: 0.2; color: var(--muted); }
@@ -737,7 +743,7 @@
     .lightbox-backdrop {
       position: absolute;
       inset: 0;
-      background: rgba(5,8,16,0.94);
+      background: rgba(255,255,255,0.96);
       backdrop-filter: blur(20px);
     }
     .lightbox-img {
@@ -747,7 +753,7 @@
       max-height: 85vh;
       border-radius: 16px;
       border: 1px solid var(--border-bright);
-      box-shadow: 0 40px 100px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.05);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05);
       transform: scale(0.88) translateY(20px);
       transition: transform 0.45s cubic-bezier(0.22,1,0.36,1);
       object-fit: contain;
@@ -759,7 +765,7 @@
       z-index: 2;
       width: 44px; height: 44px;
       border-radius: 12px;
-      background: rgba(255,255,255,0.07);
+      background: rgba(0,0,0,0.08);
       border: 1px solid var(--border-bright);
       color: var(--text);
       display: flex; align-items: center; justify-content: center;
@@ -767,8 +773,8 @@
       transition: all 0.2s ease;
     }
     .lightbox-close:hover {
-      background: rgba(255,255,255,0.14);
-      border-color: rgba(255,255,255,0.25);
+      background: rgba(0,0,0,0.15);
+      border-color: var(--text);
     }
     .lightbox-label {
       position: absolute;
@@ -872,6 +878,7 @@
     .tool-card:nth-child(1) { animation-delay: 0s; }
     .tool-card:nth-child(2) { animation-delay: 0.1s; }
     .tool-card:nth-child(3) { animation-delay: 0.2s; }
+    .tool-card:nth-child(4) { animation-delay: 0.3s; }
 
     .tool-card:hover {
       transform: translateY(-8px) scale(1.01);
@@ -938,7 +945,7 @@
       box-shadow: 0 0 24px rgba(0,200,255,0.2);
     }
     .tool-card.disabled .card-icon-wrap {
-      background: rgba(255,255,255,0.04);
+      background: rgba(0,0,0,0.02);
       border-color: var(--border);
       color: var(--muted);
     }
@@ -961,7 +968,7 @@
       color: var(--hpe-green);
     }
     .badge-soon {
-      background: rgba(255,255,255,0.04);
+      background: rgba(0,0,0,0.02);
       border: 1px solid var(--border);
       color: var(--muted);
     }
@@ -1003,7 +1010,7 @@
     .feature-tag {
       padding: 4px 10px;
       border-radius: 4px;
-      background: rgba(255,255,255,0.04);
+      background: rgba(0,0,0,0.02);
       border: 1px solid var(--border);
       font-size: 11px;
       color: var(--muted);
@@ -1245,7 +1252,7 @@
       content: '';
       position: absolute;
       inset: 0;
-      background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 50%);
+      background: linear-gradient(135deg, rgba(0,0,0,0.03) 0%, transparent 50%);
       opacity: 0;
       transition: opacity 0.3s ease;
     }
@@ -1346,6 +1353,61 @@
       transform: translateY(0);
       transition: all 0.4s cubic-bezier(0.22,1,0.36,1);
     }
+
+    /* ─── HPE ELEGANT OVERRIDES ─────────────────────────────────── */
+    .aurora, .grid-overlay, .noise, .cursor-glow, #bg-canvas { display: none !important; }
+    html, body { background: #FFFFFF !important; }
+    body { font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif !important; color: #2C2C2C !important; font-weight: 400 !important; letter-spacing: -0.005em; }
+    .page-overline, .steps-overline, .field-label, .field-hint, .card-title,
+    .stat-label, thead th, .nav-pill, .badge, .drop-title, .drop-sub, .drop-file,
+    .status-pill, .tab-btn, .logo-eyebrow, .btn, .btn-primary, .btn-ghost,
+    .toast, .step-tag, .meta, input, textarea, select, tbody td, table,
+    .tool-card, .tool-label, .tool-title, .tool-desc, .hero-eyebrow, .step-title, .step-desc {
+      font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif !important;
+    }
+    h1, h2, h3, h4, .page-title, .hero-title, .steps-title, .logo-name, .tool-title {
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif !important;
+      letter-spacing: -0.022em !important; font-weight: 700 !important; color: #1A1A1A !important;
+    }
+    .page-title, .hero-title { font-weight: 800 !important; letter-spacing: -0.028em !important; }
+    .hero-title { font-size: clamp(40px, 5vw, 68px) !important; line-height: 1.05 !important; }
+    .page-title em, .hero-title em, .steps-title em, .logo-name em, .tool-title em {
+      background: none !important; -webkit-background-clip: initial !important;
+      -webkit-text-fill-color: #01A982 !important; background-clip: initial !important;
+      color: #01A982 !important; font-style: normal !important;
+    }
+    .page-overline, .steps-overline, .logo-eyebrow, .hero-eyebrow {
+      font-size: 11px !important; letter-spacing: 0.14em !important; font-weight: 700 !important;
+      color: #01A982 !important; text-transform: uppercase !important;
+    }
+    .page-subtitle, .steps-subtitle, .hero-subtitle { color: #4B5563 !important; font-weight: 400 !important; font-size: 17px !important; line-height: 1.65 !important; }
+    .header::before { background: #FFFFFF !important; border-bottom: 1px solid #E4E6EB !important; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+    .header.scrolled::before { background: #FFFFFF !important; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .logo-name { color: #1A1A1A !important; font-weight: 700 !important; }
+    .nav-pill { border-radius: 4px !important; border-color: #D5D5D5 !important; color: #333 !important; font-weight: 600 !important; font-size: 12px !important; letter-spacing: 0.01em !important; text-transform: none !important; padding: 8px 16px !important; }
+    .nav-pill:hover { border-color: #01A982 !important; color: #01A982 !important; background: rgba(1,169,130,0.05) !important; }
+    .status-dot { animation: none !important; box-shadow: none !important; }
+    .btn, .btn-primary, .btn-ghost { border-radius: 4px !important; letter-spacing: 0.01em !important; text-transform: none !important; font-weight: 700 !important; font-size: 14px !important; padding: 14px 28px !important; transition: all .15s ease !important; }
+    .btn-primary { background: #01A982 !important; color: #FFFFFF !important; border: 1px solid #01A982 !important; box-shadow: none !important; transform: none !important; }
+    .btn-primary:hover:not(:disabled) { background: #00755A !important; border-color: #00755A !important; transform: none !important; box-shadow: 0 2px 6px rgba(1,169,130,0.25) !important; }
+    .btn-primary::before { display: none !important; }
+    .btn-ghost { background: #FFFFFF !important; color: #1A1A1A !important; border: 1px solid #B0B0B0 !important; }
+    .btn-ghost:hover { background: #F5F6F8 !important; border-color: #1A1A1A !important; color: #1A1A1A !important; }
+    /* Tool cards — clean white HPE cards */
+    .tool-card, .step-card {
+      background: #FFFFFF !important; border: 1px solid #E4E6EB !important; border-radius: 6px !important;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important; transition: all .2s ease !important;
+    }
+    .tool-card:hover, .step-card:hover {
+      border-color: #01A982 !important; box-shadow: 0 4px 16px rgba(0,0,0,0.08) !important; transform: translateY(-2px) !important;
+    }
+    .tool-title, .step-title { color: #1A1A1A !important; font-weight: 700 !important; }
+    .tool-desc, .step-desc { color: #4B5563 !important; font-weight: 400 !important; line-height: 1.6 !important; }
+    .step-tag { background: rgba(1,169,130,0.08) !important; color: #01A982 !important; border-color: rgba(1,169,130,0.3) !important; border-radius: 4px !important; font-weight: 700 !important; letter-spacing: 0.05em !important; }
+    /* Remove gradient highlights on top */
+    .tool-card::before, .step-card::before, .hero::before, .hero::after { display: none !important; }
+    /* Toast */
+    .toast { border-radius: 4px !important; font-weight: 600 !important; box-shadow: 0 4px 12px rgba(0,0,0,0.12) !important; }
   </style>
 </head>
 <body>
@@ -1659,23 +1721,55 @@
       </div>
     </div>
 
-  </div>
-
-  <!-- Mentors Tools Grid -->
-  <div class="tools-grid" id="mentors-grid" style="display: none;">
-
-    <!-- Card 1: Device Movement -->
-    <div class="tool-card card-mentor" id="tile-device-movement" onclick="window.location.href='http://localhost:8000/ccs-manager'">
+    <!-- Card 4: SSO Tools (Okta role strings + SAML metadata) -->
+    <div class="tool-card card-cyan" id="tile-sso-tools" onclick="window.location.href='/sso-tools/'">
       <div class="card-glow"></div>
       <div class="card-top-bar"></div>
       <div class="card-body">
         <div class="card-header-row">
           <div class="card-icon-wrap">
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <rect x="2" y="3" width="20" height="14" rx="2"/>
-              <path d="M8 21h8M12 17v4"/>
-              <path d="M8 10l3 3-3 3"/>
-              <path d="M16 10l-3 3 3 3"/>
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <path d="M9 12l2 2 4-4"/>
+            </svg>
+          </div>
+          <div class="card-badge badge-active">
+            <div class="badge-dot"></div>
+            Active
+          </div>
+        </div>
+        <div class="card-module-label">Module 04</div>
+        <div class="card-title">SSO Tools</div>
+        <div class="card-desc">Build GreenLake Okta role-assignment strings (with or without groups) and validate SAML IdP metadata—same port as Platform Tools under <code>/sso-tools/</code>.</div>
+        <div class="card-features">
+          <span class="feature-tag">Okta strings</span>
+          <span class="feature-tag">SAML check</span>
+          <span class="feature-tag">Export</span>
+        </div>
+        <div class="card-footer">
+          <div class="card-meta">internal / SSO Tools</div>
+          <div class="card-arrow">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Mentors Tools Grid -->
+  <div class="tools-grid" id="mentors-grid" style="display: none;">
+
+    <!-- Card 1: Mentor tool — full GreenLake Dashboard (FastAPI, embedded /gldash/) -->
+    <div class="tool-card card-mentor" id="tile-mentor-tool" onclick="window.location.href='/rohit'">
+      <div class="card-glow"></div>
+      <div class="card-top-bar"></div>
+      <div class="card-body">
+        <div class="card-header-row">
+          <div class="card-icon-wrap">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <path d="M3 9h18M9 21V9"/>
             </svg>
           </div>
           <div class="card-badge badge-mentor">
@@ -1684,54 +1778,16 @@
           </div>
         </div>
         <div class="card-module-label">Mentor Module 01</div>
-        <div class="card-title">Device Movement</div>
-        <div class="card-desc">Track and manage device transfers between workspaces. Monitor movement history, pending transfers, and device relocation status.</div>
+        <div class="card-title">Mentor tool</div>
+        <div class="card-desc">Opens the full GreenLake Dashboard (devices, reports, bulk operations, CCS manager, sites &amp; groups) embedded in this server under <code>/gldash/</code> — same port as Platform Tools, no separate process.</div>
         <div class="card-features">
-          <span class="feature-tag">Transfer Tracking</span>
-          <span class="feature-tag">Movement History</span>
-          <span class="feature-tag">Workspace Migration</span>
-          <span class="feature-tag">Status Monitor</span>
+          <span class="feature-tag">Full Dashboard</span>
+          <span class="feature-tag">Bulk &amp; CCS</span>
+          <span class="feature-tag">FastAPI</span>
+          <span class="feature-tag">Session Login</span>
         </div>
         <div class="card-footer">
-          <div class="card-meta">greenlake.hpe.com / device-movement</div>
-          <div class="card-arrow">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Card 2: Subscription Movement -->
-    <div class="tool-card card-mentor card-cyan" id="tile-sub-movement">
-      <div class="card-glow"></div>
-      <div class="card-top-bar"></div>
-      <div class="card-body">
-        <div class="card-header-row">
-          <div class="card-icon-wrap">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path d="M20 12V22H4V12"/>
-              <path d="M22 7H2v5h20V7z"/>
-              <path d="M12 22V7"/>
-              <path d="M7 14l3 3-3 3"/>
-              <path d="M17 14l-3 3 3 3"/>
-            </svg>
-          </div>
-          <div class="card-badge badge-mentor">
-            <div class="badge-dot"></div>
-            Mentor Tool
-          </div>
-        </div>
-        <div class="card-module-label">Mentor Module 02</div>
-        <div class="card-title">Subscription Movement</div>
-        <div class="card-desc">Manage subscription transfers and license reassignments across accounts. Track entitlement migrations and renewal transitions.</div>
-        <div class="card-features">
-          <span class="feature-tag">License Transfer</span>
-          <span class="feature-tag">Entitlement Migration</span>
-          <span class="feature-tag">Account Reassignment</span>
-          <span class="feature-tag">Transfer History</span>
-        </div>
-        <div class="card-footer">
-          <div class="card-meta">greenlake.hpe.com / subscription-movement</div>
+          <div class="card-meta">/gldash/ · /rohit</div>
           <div class="card-arrow">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
           </div>

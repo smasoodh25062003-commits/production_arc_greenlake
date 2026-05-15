@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Transfer Devices — HPE GreenLake</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --hpe-green:      #01A982;
+      --hpe-green-dim:  #00755A;
+      --hpe-green-glow: rgba(1,169,130,0.10);
+      --hpe-cyan:       #0D7AC7;
+      --hpe-cyan-glow:  rgba(13,122,199,0.08);
+      --hpe-purple:     #6A30C7;
+      --black:          #FFFFFF;
+      --surface:        #F7F7F7;
+      --panel:          #FFFFFF;
+      --panel-alt:      #F2F2F2;
+      --border:         #D5D5D5;
+      --border-bright:  #B0B0B0;
+      --text:           #2C2C2C;
+      --text-secondary: #555555;
+      --muted:          #777777;
+      --warn:           #C63E3E;
+      --font-mono: 'Inter', 'JetBrains Mono', monospace;
+      --font-sans: 'Inter', system-ui, sans-serif;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.06);
+      --shadow-md: 0 2px 4px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    html { scroll-behavior: smooth; }
+    body { background: var(--black); color: var(--text); font-family: var(--font-sans); font-weight: 500; min-height: 100vh; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+
+    /* BG — subtle HPE-style light wash */
+    .aurora { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+    .aurora-blob { position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0; animation: blobPulse 18s ease-in-out infinite; }
+    .aurora-blob:nth-child(1) { width:700px;height:700px;background:radial-gradient(circle,rgba(1,169,130,.10) 0%,transparent 70%);top:-200px;left:-200px; }
+    .aurora-blob:nth-child(2) { width:500px;height:500px;background:radial-gradient(circle,rgba(13,122,199,.08) 0%,transparent 70%);top:40%;right:-100px;animation-delay:3s; }
+    .aurora-blob:nth-child(3) { width:600px;height:600px;background:radial-gradient(circle,rgba(106,48,199,.06) 0%,transparent 70%);bottom:-150px;left:30%;animation-delay:6s; }
+    @keyframes blobPulse { 0%,100%{opacity:0;transform:scale(.9) translate(0,0);}25%{opacity:.7;}50%{opacity:.5;transform:scale(1.05) translate(30px,-20px);}75%{opacity:.7;} }
+    .grid-overlay { position:fixed;inset:0;z-index:0;pointer-events:none;background-image:linear-gradient(rgba(0,0,0,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.035) 1px,transparent 1px);background-size:60px 60px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 40%,transparent 100%); }
+
+    /* Header */
+    .header { position: fixed; top:0; left:0; right:0; z-index: 100; height: 68px; display: flex; align-items: center; justify-content: space-between; padding: 0 48px; }
+    .header::before { content:''; position:absolute; inset:0; background: rgba(255,255,255,.88); backdrop-filter: blur(20px) saturate(180%); border-bottom: 1px solid var(--border); z-index:-1; }
+    .logo-area { display:flex;align-items:center;gap:14px;text-decoration:none;cursor:pointer; color: var(--text); }
+    .hpe-badge { width:38px;height:38px;background:var(--hpe-green);display:flex;align-items:center;justify-content:center;clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);transition:transform .3s ease; }
+    .logo-area:hover .hpe-badge { transform:rotate(30deg) scale(1.1); }
+    .logo-text-group { display:flex;flex-direction:column;gap:1px; }
+    .logo-eyebrow { font-family:var(--font-mono);font-size:9px;letter-spacing:.25em;text-transform:uppercase;color:var(--hpe-green); }
+    .logo-name { font-size:16px;font-weight:700;color:var(--text);letter-spacing:-.03em; }
+    .logo-name em { color:var(--hpe-green);font-style:normal; }
+    .header-nav { display:flex;align-items:center;gap:8px; }
+    .nav-pill { display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:100px;border:1px solid var(--border);font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;color:var(--muted);background:transparent;transition:all .3s ease;text-decoration:none; }
+    .nav-pill:hover { border-color:var(--hpe-green);color:var(--hpe-green);background:var(--hpe-green-glow); }
+    .status-dot { width:6px;height:6px;border-radius:50%;background:var(--hpe-green);animation:statusPulse 2s ease-in-out infinite; }
+    @keyframes statusPulse { 0%,100%{box-shadow:0 0 0 0 rgba(1,169,130,.7);}50%{box-shadow:0 0 0 4px rgba(1,169,130,0);} }
+
+    /* Page */
+    .page { position:relative;z-index:1;padding:110px 64px 80px; }
+    .page-wrap { max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:28px; }
+
+    .page-hero { display:flex;align-items:flex-end;justify-content:space-between;padding-bottom:24px;border-bottom:1px solid var(--border); }
+    .page-overline { font-family:var(--font-mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--hpe-green);margin-bottom:12px;display:flex;align-items:center;gap:10px; }
+    .page-overline::before { content:'';width:24px;height:1px;background:var(--hpe-green); }
+    .page-title { font-size:clamp(32px,4vw,48px);font-weight:900;letter-spacing:-.04em;line-height:1;color:var(--text); }
+    .page-title em { font-style:normal;background:linear-gradient(135deg,var(--hpe-green),var(--hpe-cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text; }
+    .page-subtitle { margin-top:10px;font-size:15px;color:var(--text-secondary);line-height:1.7;max-width:680px; }
+
+    /* Cards */
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; box-shadow: var(--shadow-sm); }
+    .card-header { padding: 18px 24px; border-bottom: 1px solid var(--border); background: var(--surface); display:flex;align-items:center;justify-content:space-between;gap:12px; }
+    .card-title { font-family:var(--font-sans);font-size:13px;font-weight:800;color:var(--text);letter-spacing:.04em;text-transform:uppercase; }
+    .card-body { padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+
+    .field-label { font-family: var(--font-sans); font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color: var(--text); margin-bottom:6px; display:flex;align-items:center;gap:8px; }
+    .field-label-dot { width:6px;height:6px;border-radius:50%;background:var(--hpe-green); }
+    .field-hint { font-family: var(--font-mono); font-size: 10px; color: var(--muted); margin-top: 6px; line-height:1.6; }
+
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 720px) { .row { grid-template-columns: 1fr; } }
+
+    input[type="text"], textarea, select {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 11px 14px;
+      border-radius: 10px;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    input[type="text"]::placeholder, textarea::placeholder { color: var(--muted); }
+    input[type="text"]:focus, textarea:focus, select:focus { border-color: var(--hpe-green); box-shadow: 0 0 0 3px rgba(1,169,130,.09); }
+    textarea { resize: vertical; min-height: 110px; line-height: 1.7; }
+
+    .status-pill { font-family:var(--font-mono);font-size:10px;padding:3px 12px;border-radius:100px; }
+    .status-pill.set   { background:rgba(1,169,130,.12);color:var(--hpe-green);border:1px solid rgba(1,169,130,.25); }
+    .status-pill.unset { background:rgba(90,101,128,.1);color:var(--muted);border:1px solid var(--border); }
+
+    /* File drop */
+    .drop {
+      border: 1.5px dashed var(--border-bright);
+      border-radius: 14px;
+      padding: 28px;
+      background: var(--surface);
+      display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+    }
+    .drop:hover, .drop.drag { border-color: var(--hpe-green); background: rgba(1,169,130,.04); }
+    .drop-title { font-family: var(--font-mono); font-size: 12px; color: var(--text); }
+    .drop-sub { font-family: var(--font-mono); font-size: 10px; color: var(--muted); letter-spacing: .05em; }
+    .drop-file { font-family: var(--font-mono); font-size: 11px; color: var(--hpe-green); word-break: break-all; }
+
+    /* Buttons */
+    .actions { display: flex; gap: 10px; justify-content: flex-end; align-items:center; flex-wrap: wrap; }
+    .btn { padding:10px 20px;border-radius:4px;border:1px solid transparent;cursor:pointer;font-family:var(--font-sans);font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:none;transition:all .18s ease;display:inline-flex;align-items:center;gap:8px; }
+    .btn-primary { background:var(--hpe-green);color:#FFFFFF;border-color:var(--hpe-green); }
+    .btn-primary:hover:not(:disabled) { background:var(--hpe-green-dim); border-color:var(--hpe-green-dim); box-shadow:0 4px 12px rgba(1,169,130,.25); }
+    .btn-primary:disabled { opacity:.45;cursor:not-allowed;box-shadow:none; }
+    .btn-ghost { background: #FFFFFF; color: var(--text); border-color: var(--border-bright); font-weight:700; }
+    .btn-ghost:hover { border-color: var(--text); color: var(--text); background:#F7F7F7; }
+
+    /* Stats */
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .stat {
+      background: var(--panel-alt); border: 1px solid var(--border); border-radius: 14px;
+      padding: 14px 16px;
+    }
+    .stat-label { font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:6px; }
+    .stat-val { font-family: var(--font-sans); font-size: 26px; font-weight: 800; letter-spacing: -.02em; }
+    .stat.ok .stat-val  { color: var(--hpe-green); }
+    .stat.bad .stat-val { color: var(--warn); }
+    .stat.tot .stat-val { color: var(--hpe-cyan); }
+
+    /* Results table */
+    .table-wrap { overflow: auto; max-height: 420px; border: 1px solid var(--border); border-radius: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    thead th {
+      position: sticky; top: 0; background: var(--surface); padding: 12px 16px;
+      text-align: left; font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+      color: var(--muted); letter-spacing: .08em; text-transform: uppercase;
+      border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    tbody tr { border-bottom: 1px solid var(--border); }
+    tbody tr:nth-child(even) { background: rgba(0,0,0,.02); }
+    tbody tr:hover { background: rgba(1,169,130,.05); }
+    tbody td { padding: 11px 16px; font-family: var(--font-mono); color: var(--text); font-size: 11.5px; font-weight: 500; vertical-align: top; word-break: break-word; }
+    .badge { display:inline-block;padding:3px 10px;border-radius:4px;font-size:10px;font-family:var(--font-sans);font-weight:700;letter-spacing:.04em;text-transform:uppercase; }
+    .badge-green { background:rgba(1,169,130,.12);color:var(--hpe-green-dim);border:1px solid rgba(1,169,130,.3); }
+    .badge-red   { background:rgba(198,62,62,.10);color:var(--warn);border:1px solid rgba(198,62,62,.3); }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: var(--panel); border: 1px solid var(--border-bright); border-radius: 12px;
+      padding: 12px 22px; font-size: 12px; font-family: var(--font-mono); color: var(--text);
+      z-index: 9999; opacity: 0; pointer-events: none; transition: all .3s;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.success { color: var(--hpe-green); border-color: rgba(1,169,130,.4); }
+    .toast.error   { color: var(--warn); border-color: rgba(255,107,107,.4); }
+
+    /* Loading */
+    .spinner { width:16px;height:16px;border:2px solid rgba(0,0,0,.12);border-top-color:var(--hpe-green);border-radius:50%;animation:spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .tab-row { display:flex; gap: 4px; padding: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; width: max-content; }
+    .tab-btn { background: transparent; border: none; color: var(--text-secondary); font-family: var(--font-sans); font-size: 12px; font-weight: 700; letter-spacing: .02em; padding: 7px 16px; border-radius: 4px; cursor: pointer; transition: all .18s ease; }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { background: var(--hpe-green); color: #FFFFFF; }
+
+    /* ─── HPE ELEGANT OVERRIDES ─────────────────────────────────── */
+    /* Remove decorative visual noise */
+    .aurora, .grid-overlay, .noise, .cursor-glow, #bg-canvas { display: none !important; }
+    /* Clean solid HPE page background */
+    html, body { background: #FFFFFF !important; }
+    body { font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif !important; color: #2C2C2C !important; font-weight: 400 !important; letter-spacing: -0.005em; }
+    /* Unify typography — no monospace labels */
+    .page-overline, .steps-overline, .field-label, .field-hint, .card-title,
+    .stat-label, thead th, .nav-pill, .badge, .drop-title, .drop-sub, .drop-file,
+    .status-pill, .tab-btn, .logo-eyebrow, .btn, .btn-primary, .btn-ghost,
+    .toast, .step-tag, .meta, input, textarea, select, tbody td, table {
+      font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif !important;
+    }
+    /* Elegant headings */
+    h1, h2, h3, h4, .page-title, .hero-title, .steps-title, .logo-name {
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif !important;
+      letter-spacing: -0.022em !important;
+      font-weight: 700 !important;
+      color: #1A1A1A !important;
+    }
+    .page-title, .hero-title { font-weight: 800 !important; letter-spacing: -0.028em !important; }
+    /* Flat green accent (no gradient text) */
+    .page-title em, .hero-title em, .steps-title em, .logo-name em {
+      background: none !important;
+      -webkit-background-clip: initial !important;
+      -webkit-text-fill-color: #01A982 !important;
+      background-clip: initial !important;
+      color: #01A982 !important;
+      font-style: normal !important;
+    }
+    /* Refined overlines */
+    .page-overline, .steps-overline, .logo-eyebrow {
+      font-size: 11px !important;
+      letter-spacing: 0.14em !important;
+      font-weight: 700 !important;
+      color: #01A982 !important;
+      text-transform: uppercase !important;
+    }
+    /* Subtle body text */
+    .page-subtitle, .steps-subtitle, .hero-subtitle { color: #555 !important; font-weight: 400 !important; font-size: 15px !important; line-height: 1.7 !important; }
+    /* Cards — soft, elegant */
+    .card { border-radius: 6px !important; border: 1px solid #E4E6EB !important; box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 1px 3px rgba(0,0,0,0.04) !important; background: #FFFFFF !important; }
+    .card-header { background: #FAFBFC !important; border-bottom: 1px solid #E4E6EB !important; }
+    .card-title { font-size: 13px !important; font-weight: 700 !important; color: #1A1A1A !important; letter-spacing: 0.02em !important; text-transform: uppercase !important; }
+    /* Header — clean white HPE-style */
+    .header::before { background: #FFFFFF !important; border-bottom: 1px solid #E4E6EB !important; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+    .logo-name { color: #1A1A1A !important; font-weight: 700 !important; }
+    .nav-pill { border-radius: 4px !important; border-color: #D5D5D5 !important; color: #333 !important; font-weight: 600 !important; font-size: 12px !important; letter-spacing: 0.01em !important; text-transform: none !important; padding: 8px 16px !important; }
+    .nav-pill:hover { border-color: #01A982 !important; color: #01A982 !important; background: rgba(1,169,130,0.05) !important; }
+    .status-dot { animation: none !important; box-shadow: none !important; }
+    /* Buttons — flat HPE style */
+    .btn, .btn-primary, .btn-ghost { border-radius: 4px !important; letter-spacing: 0.01em !important; text-transform: none !important; font-weight: 700 !important; font-size: 13px !important; padding: 11px 22px !important; transition: all .15s ease !important; }
+    .btn-primary { background: #01A982 !important; color: #FFFFFF !important; border: 1px solid #01A982 !important; box-shadow: none !important; }
+    .btn-primary:hover:not(:disabled) { background: #00755A !important; border-color: #00755A !important; transform: none !important; box-shadow: 0 2px 6px rgba(1,169,130,0.25) !important; }
+    .btn-ghost { background: #FFFFFF !important; color: #1A1A1A !important; border: 1px solid #B0B0B0 !important; }
+    .btn-ghost:hover { background: #F5F6F8 !important; border-color: #1A1A1A !important; color: #1A1A1A !important; }
+    /* Inputs — clean */
+    input[type="text"], input[type="search"], input[type="email"], input[type="number"],
+    textarea, select {
+      background: #FFFFFF !important; border: 1px solid #D5D5D5 !important; color: #1A1A1A !important;
+      border-radius: 4px !important; font-size: 14px !important; font-weight: 500 !important; padding: 10px 12px !important;
+    }
+    input:focus, textarea:focus, select:focus { border-color: #01A982 !important; box-shadow: 0 0 0 3px rgba(1,169,130,0.12) !important; }
+    /* Field labels — strong, bold, readable */
+    .field-label { font-size: 12px !important; font-weight: 700 !important; color: #1A1A1A !important; letter-spacing: 0.02em !important; text-transform: uppercase !important; }
+    .field-hint { color: #6B7280 !important; font-size: 12px !important; font-weight: 400 !important; letter-spacing: 0 !important; }
+    /* Badges & pills — subtle pro */
+    .badge, .status-pill { border-radius: 4px !important; font-weight: 700 !important; font-size: 11px !important; letter-spacing: 0.03em !important; padding: 4px 10px !important; text-transform: uppercase !important; }
+    /* Tables — clean zebra */
+    .table-wrap { border: 1px solid #E4E6EB !important; border-radius: 6px !important; }
+    thead th { background: #FAFBFC !important; color: #4B5563 !important; font-weight: 700 !important; font-size: 11px !important; letter-spacing: 0.04em !important; border-bottom: 1px solid #E4E6EB !important; }
+    tbody tr { border-bottom: 1px solid #EEF0F3 !important; }
+    tbody tr:nth-child(even) { background: #FAFBFC !important; }
+    tbody tr:hover { background: rgba(1,169,130,0.04) !important; }
+    tbody td { color: #2C2C2C !important; font-size: 13px !important; font-weight: 500 !important; }
+    /* Stats / KPI */
+    .stat { background: #FAFBFC !important; border: 1px solid #E4E6EB !important; border-radius: 6px !important; }
+    .stat-val { font-weight: 800 !important; letter-spacing: -0.02em !important; color: #1A1A1A !important; }
+    .stat-label { color: #6B7280 !important; font-weight: 700 !important; font-size: 11px !important; letter-spacing: 0.05em !important; }
+    /* Tabs */
+    .tab-row { background: #F5F6F8 !important; border: 1px solid #E4E6EB !important; border-radius: 4px !important; padding: 3px !important; }
+    .tab-btn { border-radius: 3px !important; font-weight: 700 !important; font-size: 12px !important; padding: 7px 16px !important; color: #555 !important; text-transform: none !important; letter-spacing: 0 !important; }
+    .tab-btn.active { background: #01A982 !important; color: #FFFFFF !important; }
+    /* Toast */
+    .toast { border-radius: 4px !important; font-weight: 600 !important; box-shadow: 0 4px 12px rgba(0,0,0,0.12) !important; }
+  </style>
+</head>
+<body>
+
+<div class="aurora"><div class="aurora-blob"></div><div class="aurora-blob"></div><div class="aurora-blob"></div></div>
+<div class="grid-overlay"></div>
+
+<header class="header">
+  <a href="/GreenLakeTools.html" class="logo-area">
+    <div class="hpe-badge">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="#000"><path d="M12 2L3 7v5c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z"/></svg>
+    </div>
+    <div class="logo-text-group">
+      <div class="logo-eyebrow">HPE GreenLake</div>
+      <div class="logo-name">Platform <em>Tools</em></div>
+    </div>
+  </a>
+  <nav class="header-nav">
+    <div class="nav-pill"><div class="status-dot"></div>Transfer Devices</div>
+    <a href="/GreenLakeTools.html" class="nav-pill">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      Home
+    </a>
+  </nav>
+</header>
+
+<main class="page">
+  <div class="page-wrap">
+
+    <section class="page-hero">
+      <div>
+        <div class="page-overline">CCS Manager</div>
+        <h1 class="page-title">Transfer <em>Devices</em></h1>
+        <p class="page-subtitle">Move devices between workspaces by uploading a CSV of serial numbers. Works with the Aquila CCS-Manager session (devices-to-customer) or the public GreenLake API fallback.</p>
+      </div>
+    </section>
+
+    <!-- AUTH -->
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title">Request Headers</div>
+        <span id="headers-status" class="status-pill unset">NOT SET</span>
+      </div>
+      <div class="card-body">
+        <div>
+          <label class="field-label"><span class="field-label-dot"></span>Base URL</label>
+          <input type="text" id="base-url" value="https://aquila-user-api.common.cloud.hpe.com" style="margin-top:10px;" readonly />
+        </div>
+
+        <div>
+          <label class="field-label"><span class="field-label-dot"></span>Raw Headers</label>
+          <textarea id="raw-headers" placeholder="# authorization&#10;# Bearer eyJhbG...&#10;# cookie&#10;# ccs-csrftoken=...; hpeIamLang=...;" style="min-height:160px;"></textarea>
+          <div class="field-hint">Paste raw headers copied from DevTools — Authorization and Cookie are extracted automatically (same format as Device Management).</div>
+        </div>
+
+        <div class="actions">
+          <button class="btn btn-ghost" onclick="clearHeaders()">Clear</button>
+          <button class="btn btn-primary" onclick="applyHeaders()">Apply Headers</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TRANSFER -->
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title">Transfer Devices</div>
+      </div>
+      <div class="card-body">
+        <div>
+          <label class="field-label"><span class="field-label-dot"></span>Destination Workspace ID <span style="color:var(--warn)">*</span></label>
+          <input type="text" id="dest-workspace" placeholder="Destination platform_customer_id" autocomplete="off" />
+        </div>
+
+        <div>
+          <label class="field-label"><span class="field-label-dot"></span>Folder</label>
+          <input type="text" id="folder" value="default" />
+          <div class="field-hint">Folder name in destination workspace (defaults to <span style="color:var(--hpe-cyan)">default</span>).</div>
+        </div>
+
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
+            <label class="field-label" style="margin:0;"><span class="field-label-dot"></span>Serial Numbers</label>
+            <div class="tab-row" id="input-tabs">
+              <button type="button" class="tab-btn active" data-mode="paste">Paste</button>
+              <button type="button" class="tab-btn" data-mode="csv">Upload CSV</button>
+            </div>
+          </div>
+
+          <div id="paste-pane">
+            <textarea id="serials-input" placeholder="Paste Serial Numbers — comma or newline separated&#10;e.g.  AB12345678, CD98765432  or one per line..." style="min-height:140px;"></textarea>
+            <div class="field-hint" id="serials-count">0 serials entered</div>
+          </div>
+
+          <div id="csv-pane" class="hidden">
+            <div class="drop" id="drop">
+              <div class="drop-title" id="drop-title">Click or drop a CSV here</div>
+              <div class="drop-sub" id="drop-sub">Must contain a <span style="color:var(--hpe-cyan)">Serial Number</span> column</div>
+              <div class="drop-file hidden" id="drop-file"></div>
+            </div>
+            <input type="file" id="file-input" accept=".csv,.txt" class="hidden" />
+            <div class="field-hint">Need a template? <a href="#" onclick="event.preventDefault(); downloadTemplate();" style="color:var(--hpe-cyan);text-decoration:none;">Download CSV template</a>.</div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn btn-ghost" onclick="clearSerials()">Clear</button>
+          <button class="btn btn-primary" id="run-btn" onclick="runLookup()">
+            <span id="run-label">Look Up Devices</span>
+            <span id="run-spin" class="spinner hidden"></span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- REVIEW -->
+    <section class="card hidden" id="review-card">
+      <div class="card-header">
+        <div class="card-title">Review &amp; Confirm</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span id="review-count" class="status-pill unset">0 selected</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="stats">
+          <div class="stat tot"><div class="stat-label">Queried</div><div class="stat-val" id="lk-total">0</div></div>
+          <div class="stat ok"><div class="stat-label">Found</div><div class="stat-val" id="lk-found">0</div></div>
+          <div class="stat bad"><div class="stat-label">Missing</div><div class="stat-val" id="lk-missing">0</div></div>
+        </div>
+
+        <div id="missing-banner" class="hidden" style="background:rgba(255,107,107,.05);border:1px solid rgba(255,107,107,.25);border-radius:10px;padding:10px 14px;font-family:var(--font-mono);font-size:11px;color:var(--warn);line-height:1.6;"></div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:36px"><input type="checkbox" id="select-all" /></th>
+                <th>Serial</th>
+                <th>MAC</th>
+                <th>Type</th>
+                <th>Model</th>
+                <th>Part #</th>
+                <th>Folder</th>
+                <th>Workspace</th>
+              </tr>
+            </thead>
+            <tbody id="review-body"></tbody>
+          </table>
+        </div>
+
+        <div class="actions">
+          <button class="btn btn-ghost" onclick="cancelReview()">Cancel</button>
+          <button class="btn btn-primary" id="confirm-btn" onclick="confirmTransfer()">
+            <span id="confirm-label">Confirm &amp; Transfer Selected</span>
+            <span id="confirm-spin" class="spinner hidden"></span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- RESULTS -->
+    <section class="card hidden" id="results-card">
+      <div class="card-header">
+        <div class="card-title">Results</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span id="elapsed" class="status-pill unset">—</span>
+          <button class="btn btn-ghost" onclick="exportResults()">Export CSV</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="stats">
+          <div class="stat tot"><div class="stat-label">Total</div><div class="stat-val" id="stat-total">0</div></div>
+          <div class="stat ok"><div class="stat-label">Transferred</div><div class="stat-val" id="stat-ok">0</div></div>
+          <div class="stat bad"><div class="stat-label">Failed</div><div class="stat-val" id="stat-bad">0</div></div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th style="width:40px">#</th><th>Serial Number</th><th>Status</th><th>Details</th></tr>
+            </thead>
+            <tbody id="results-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API_URL = (window.location.origin || 'http://localhost:5000') + '/api/ccs/transfer-devices';
+const LOOKUP_URL = (window.location.origin || 'http://localhost:5000') + '/api/ccs/lookup-devices';
+const state = { file: null, lastResults: null, parsedHeaders: {}, inputMode: 'paste', lookup: null, selected: new Set() };
+
+function showToast(msg, kind) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show ' + (kind || '');
+  setTimeout(() => { el.classList.remove('show'); }, 3000);
+}
+
+/* Tabs: paste vs csv */
+document.querySelectorAll('#input-tabs .tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#input-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.inputMode = btn.dataset.mode;
+    document.getElementById('paste-pane').classList.toggle('hidden', state.inputMode !== 'paste');
+    document.getElementById('csv-pane').classList.toggle('hidden',   state.inputMode !== 'csv');
+  });
+});
+
+function parseSerialsText(text) {
+  return (text || '')
+    .replace(/\r/g, '\n')
+    .split(/[,\n]/)
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+const serialsInput = document.getElementById('serials-input');
+if (serialsInput) {
+  serialsInput.addEventListener('input', () => {
+    const n = parseSerialsText(serialsInput.value).length;
+    document.getElementById('serials-count').textContent = n + ' serial' + (n === 1 ? '' : 's') + ' entered';
+  });
+}
+
+function clearSerials() {
+  document.getElementById('serials-input').value = '';
+  document.getElementById('serials-count').textContent = '0 serials entered';
+  state.file = null;
+  const df = document.getElementById('drop-file');
+  if (df) { df.textContent = ''; df.classList.add('hidden'); }
+  const dt = document.getElementById('drop-title');
+  if (dt) dt.textContent = 'Click or drop a CSV here';
+  const ds = document.getElementById('drop-sub');
+  if (ds) ds.innerHTML = 'Must contain a <span style="color:var(--hpe-cyan)">Serial Number</span> column';
+  const fi = document.getElementById('file-input');
+  if (fi) fi.value = '';
+}
+
+/* Raw header parsing — mirrors DeviceManagement.html */
+function parseRawHeaders(raw) {
+  const lines = raw.split('\n');
+  const headers = {};
+  let currentKey = null, currentValue = [];
+  for (let line of lines) {
+    line = line.trim();
+    if (!line) continue;
+    line = line.replace(/^#+\s*/, '').trim();
+    if (!line) continue;
+    const low = line.toLowerCase();
+    if (low === 'authorization') {
+      if (currentKey && currentValue.length) headers[currentKey] = currentValue.join(' ');
+      currentKey = 'Authorization'; currentValue = [];
+    } else if (low === 'cookie') {
+      if (currentKey && currentValue.length) headers[currentKey] = currentValue.join(' ');
+      currentKey = 'Cookie'; currentValue = [];
+    } else {
+      if (currentKey) currentValue.push(line);
+    }
+  }
+  if (currentKey && currentValue.length) headers[currentKey] = currentValue.join(' ');
+  headers['Accept'] = 'application/json';
+  return headers;
+}
+
+function applyHeaders() {
+  const raw = document.getElementById('raw-headers').value.trim();
+  if (!raw) { showToast('Paste your headers first.', 'error'); return; }
+  const parsed = parseRawHeaders(raw);
+  const keys = Object.keys(parsed).filter(k => k !== 'Accept');
+  if (!parsed.Authorization && !parsed.Cookie) {
+    showToast('No Authorization or Cookie found — check format.', 'error');
+    return;
+  }
+  state.parsedHeaders = parsed;
+  const pill = document.getElementById('headers-status');
+  pill.textContent = keys.join(' + ') + ' SET';
+  pill.className = 'status-pill set';
+  showToast('Headers applied — ' + keys.join(', ') + ' extracted.', 'success');
+}
+
+function clearHeaders() {
+  document.getElementById('raw-headers').value = '';
+  state.parsedHeaders = {};
+  const pill = document.getElementById('headers-status');
+  pill.textContent = 'NOT SET';
+  pill.className = 'status-pill unset';
+  showToast('Headers cleared.', 'info');
+}
+
+/* File drop */
+const drop = document.getElementById('drop');
+const fileInput = document.getElementById('file-input');
+drop.addEventListener('click', () => fileInput.click());
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+drop.addEventListener('drop', e => {
+  e.preventDefault(); drop.classList.remove('drag');
+  if (e.dataTransfer.files && e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => { if (e.target.files[0]) setFile(e.target.files[0]); });
+
+function setFile(f) {
+  if (!/\.(csv|txt)$/i.test(f.name)) { showToast('CSV or TXT file required.', 'error'); return; }
+  state.file = f;
+  const df = document.getElementById('drop-file');
+  df.textContent = f.name + '  (' + (f.size/1024).toFixed(1) + ' KB)';
+  df.classList.remove('hidden');
+  document.getElementById('drop-title').textContent = 'File ready';
+  document.getElementById('drop-sub').textContent = 'Click to change';
+}
+
+/* CSV template */
+function downloadTemplate() {
+  const csv = 'Serial Number\nAB12345678\nCD98765432\n';
+  const blob = new Blob([csv], {type: 'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'transfer_devices_template.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* Step 1: look up devices and build review table */
+function buildCommonFormData() {
+  const baseUrl = document.getElementById('base-url').value.trim();
+  const fd = new FormData();
+  fd.append('parsed_headers', JSON.stringify(state.parsedHeaders));
+  fd.append('base_url', baseUrl);
+  return fd;
+}
+
+async function runLookup() {
+  const hasAuth = state.parsedHeaders && (state.parsedHeaders.Authorization || state.parsedHeaders.Cookie);
+  if (!hasAuth) { showToast('Apply your headers first (Authorization / Cookie).', 'error'); return; }
+
+  const fd = buildCommonFormData();
+  if (state.inputMode === 'csv') {
+    if (!state.file) { showToast('CSV file required.', 'error'); return; }
+    fd.append('file', state.file);
+  } else {
+    const serials = parseSerialsText(document.getElementById('serials-input').value);
+    if (!serials.length) { showToast('Paste at least one serial number.', 'error'); return; }
+    fd.append('serials', serials.join('\n'));
+  }
+
+  setLookupLoading(true);
+  try {
+    const res = await fetch(LOOKUP_URL, { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) { showToast('Error: ' + (data.error || res.status), 'error'); return; }
+    renderLookup(data);
+    showToast(data.found + ' found · ' + data.missing_count + ' missing', data.missing_count ? 'error' : 'success');
+  } catch (err) {
+    showToast('Network error: ' + err.message, 'error');
+  } finally {
+    setLookupLoading(false);
+  }
+}
+
+function setLookupLoading(v) {
+  document.getElementById('run-btn').disabled = v;
+  document.getElementById('run-spin').classList.toggle('hidden', !v);
+  document.getElementById('run-label').textContent = v ? 'Looking up…' : 'Look Up Devices';
+}
+
+function renderLookup(data) {
+  state.lookup = data;
+  state.selected = new Set();
+
+  document.getElementById('lk-total').textContent = data.total || 0;
+  document.getElementById('lk-found').textContent = data.found || 0;
+  document.getElementById('lk-missing').textContent = data.missing_count || 0;
+
+  const banner = document.getElementById('missing-banner');
+  if ((data.missing || []).length) {
+    banner.classList.remove('hidden');
+    banner.innerHTML = '<strong>Missing serials:</strong> ' + data.missing.map(escapeHtml).join(', ');
+  } else {
+    banner.classList.add('hidden');
+    banner.innerHTML = '';
+  }
+
+  const body = document.getElementById('review-body');
+  body.innerHTML = '';
+  (data.devices || []).forEach((d, i) => {
+    const sn = d.serial_number || '';
+    state.selected.add(sn);
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><input type="checkbox" class="row-cb" data-serial="' + escapeHtml(sn) + '" checked /></td>' +
+      '<td>' + escapeHtml(sn) + '</td>' +
+      '<td>' + escapeHtml(d.mac_address) + '</td>' +
+      '<td>' + escapeHtml(d.device_type) + '</td>' +
+      '<td>' + escapeHtml(d.device_model) + '</td>' +
+      '<td>' + escapeHtml(d.part_number) + '</td>' +
+      '<td>' + escapeHtml(d.folder_name) + '</td>' +
+      '<td title="' + escapeHtml(d.platform_customer_id) + '">' + escapeHtml((d.platform_customer_id || '').slice(0, 8) + (d.platform_customer_id ? '…' : '')) + '</td>';
+    body.appendChild(tr);
+  });
+
+  body.querySelectorAll('.row-cb').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const sn = cb.dataset.serial;
+      if (cb.checked) state.selected.add(sn); else state.selected.delete(sn);
+      updateSelectedCount();
+      syncSelectAll();
+    });
+  });
+
+  const selectAll = document.getElementById('select-all');
+  selectAll.checked = true;
+  selectAll.onchange = () => {
+    const check = selectAll.checked;
+    body.querySelectorAll('.row-cb').forEach(cb => {
+      cb.checked = check;
+      const sn = cb.dataset.serial;
+      if (check) state.selected.add(sn); else state.selected.delete(sn);
+    });
+    updateSelectedCount();
+  };
+
+  document.getElementById('review-card').classList.remove('hidden');
+  document.getElementById('review-card').scrollIntoView({behavior: 'smooth', block: 'start'});
+  updateSelectedCount();
+}
+
+function updateSelectedCount() {
+  const n = state.selected.size;
+  const pill = document.getElementById('review-count');
+  pill.textContent = n + ' selected';
+  pill.className = 'status-pill ' + (n ? 'set' : 'unset');
+}
+
+function syncSelectAll() {
+  const all = document.querySelectorAll('#review-body .row-cb');
+  const checked = document.querySelectorAll('#review-body .row-cb:checked');
+  document.getElementById('select-all').checked = all.length > 0 && all.length === checked.length;
+}
+
+function cancelReview() {
+  document.getElementById('review-card').classList.add('hidden');
+  state.lookup = null;
+  state.selected = new Set();
+}
+
+/* Step 2: confirm & transfer selected */
+async function confirmTransfer() {
+  const dest = document.getElementById('dest-workspace').value.trim();
+  const folder = document.getElementById('folder').value.trim() || 'default';
+  if (!dest) { showToast('Destination workspace ID required.', 'error'); return; }
+
+  const serials = Array.from(state.selected);
+  if (!serials.length) { showToast('Select at least one device to transfer.', 'error'); return; }
+
+  if (!confirm('Transfer ' + serials.length + ' device(s) to workspace ' + dest + '?')) return;
+
+  const fd = buildCommonFormData();
+  fd.append('source_workspace_id', '');
+  fd.append('dest_workspace_id', dest);
+  fd.append('folder', folder);
+  fd.append('serials', serials.join('\n'));
+
+  setConfirmLoading(true);
+  try {
+    const res = await fetch(API_URL, { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) { showToast('Error: ' + (data.error || res.status), 'error'); return; }
+    renderResults(data);
+    showToast(data.successful + ' transferred · ' + data.failed + ' failed', data.failed ? 'error' : 'success');
+  } catch (err) {
+    showToast('Network error: ' + err.message, 'error');
+  } finally {
+    setConfirmLoading(false);
+  }
+}
+
+function setConfirmLoading(v) {
+  document.getElementById('confirm-btn').disabled = v;
+  document.getElementById('confirm-spin').classList.toggle('hidden', !v);
+  document.getElementById('confirm-label').textContent = v ? 'Transferring…' : 'Confirm & Transfer Selected';
+}
+
+function renderResults(data) {
+  state.lastResults = data;
+  document.getElementById('results-card').classList.remove('hidden');
+  document.getElementById('stat-total').textContent = data.total || 0;
+  document.getElementById('stat-ok').textContent = data.successful || 0;
+  document.getElementById('stat-bad').textContent = data.failed || 0;
+  const el = document.getElementById('elapsed');
+  el.textContent = (data.elapsed_seconds || 0) + 's';
+  el.className = 'status-pill set';
+
+  const body = document.getElementById('results-body');
+  body.innerHTML = '';
+  (data.details || []).forEach((d, i) => {
+    const tr = document.createElement('tr');
+    const badge = d.success
+      ? '<span class="badge badge-green">' + (d.status || 'OK') + '</span>'
+      : '<span class="badge badge-red">FAILED</span>';
+    const detail = d.success ? (d.status || '') : (d.error || '');
+    tr.innerHTML =
+      '<td>' + (i+1) + '</td>' +
+      '<td>' + escapeHtml(d.serial || '') + '</td>' +
+      '<td>' + badge + '</td>' +
+      '<td>' + escapeHtml(detail) + '</td>';
+    body.appendChild(tr);
+  });
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function exportResults() {
+  if (!state.lastResults) { showToast('Nothing to export.', 'error'); return; }
+  const rows = [['Serial Number','Success','Status','Error']];
+  (state.lastResults.details || []).forEach(d => {
+    rows.push([
+      d.serial || '',
+      d.success ? 'true' : 'false',
+      d.success ? (d.status || '') : '',
+      d.success ? '' : (d.error || '')
+    ]);
+  });
+  const csv = rows.map(r => r.map(v => {
+    const s = String(v == null ? '' : v);
+    return /[,"\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+  }).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'transfer_devices_results.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+</script>
+</body>
+</html>

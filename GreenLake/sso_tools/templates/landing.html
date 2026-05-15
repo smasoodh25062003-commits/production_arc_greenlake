@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HPE Role String Generator - Choose IDP</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+</head>
+<body class="chooser-page">
+  <script>window.__SSO_TOOLS_ROOT__={{ (request.script_root or "")|tojson }};</script>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-dot" aria-hidden="true"></span>
+      <h1><span class="brand-accent">HPE</span> Role String Generator</h1>
+    </div>
+    <div class="topbar-actions">
+      <a href="/GreenLakeTools.html" class="topbar-platform-link">← Platform Tools</a>
+      <button type="button" id="themeToggle" class="icon-btn" aria-label="Toggle theme" title="Toggle theme">
+        <span class="theme-icon theme-icon-light">☀</span>
+        <span class="theme-icon theme-icon-dark">☾</span>
+      </button>
+    </div>
+  </header>
+
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <a href="{{ url_for('landing') }}">Home</a>
+    <span class="crumb-sep" aria-hidden="true">/</span>
+    <span class="crumb-current">New configuration</span>
+  </nav>
+
+  <main class="chooser-main">
+    <section class="chooser-hero">
+      <span class="eyebrow">New configuration · Step 1 of 2</span>
+      <h2 class="chooser-title">Choose an identity provider</h2>
+      <p class="chooser-sub">Pick the IDP you want to generate a role-assignment string for.</p>
+    </section>
+
+    <div class="chooser-grid" role="list">
+      <a class="chooser-card chooser-card-available" href="{{ url_for('okta_select') }}" role="listitem">
+        <div class="chooser-logo chooser-logo-okta" aria-hidden="true">
+          <svg viewBox="0 0 64 64" width="36" height="36">
+            <circle cx="32" cy="32" r="22" fill="none" stroke="currentColor" stroke-width="10"/>
+          </svg>
+        </div>
+        <div class="chooser-body">
+          <div class="chooser-row">
+            <h3>Okta</h3>
+            <span class="pill pill-success">Available</span>
+          </div>
+          <p class="chooser-desc">Generate role strings for Okta-federated tenants, with or without group mappings.</p>
+        </div>
+        <div class="chooser-cta">Continue
+          <span class="arrow" aria-hidden="true">→</span>
+        </div>
+      </a>
+
+      <div class="chooser-card chooser-card-disabled" role="listitem" aria-disabled="true">
+        <div class="chooser-logo chooser-logo-azure" aria-hidden="true">
+          <svg viewBox="0 0 64 64" width="36" height="36">
+            <path d="M12 48 L30 14 L42 30 L28 48 Z M30 48 L44 26 L54 48 Z" fill="currentColor" opacity=".9"/>
+          </svg>
+        </div>
+        <div class="chooser-body">
+          <div class="chooser-row">
+            <h3>Microsoft Entra ID</h3>
+            <span class="pill pill-muted">Coming soon</span>
+          </div>
+          <p class="chooser-desc">Azure AD / Entra ID support is on the roadmap.</p>
+        </div>
+      </div>
+
+      <div class="chooser-card chooser-card-disabled" role="listitem" aria-disabled="true">
+        <div class="chooser-logo chooser-logo-google" aria-hidden="true">
+          <svg viewBox="0 0 64 64" width="36" height="36">
+            <circle cx="32" cy="32" r="16" fill="none" stroke="currentColor" stroke-width="8"/>
+            <rect x="32" y="28" width="22" height="8" fill="currentColor"/>
+          </svg>
+        </div>
+        <div class="chooser-body">
+          <div class="chooser-row">
+            <h3>Google Workspace</h3>
+            <span class="pill pill-muted">Coming soon</span>
+          </div>
+          <p class="chooser-desc">SAML/OIDC via Google Workspace is on the roadmap.</p>
+        </div>
+      </div>
+
+      <div class="chooser-card chooser-card-disabled" role="listitem" aria-disabled="true">
+        <div class="chooser-logo chooser-logo-ping" aria-hidden="true">
+          <svg viewBox="0 0 64 64" width="36" height="36">
+            <path d="M32 12 C20 12 12 22 12 32 C12 44 22 52 32 52 L32 40 C28 40 24 36 24 32 C24 28 28 24 32 24 C36 24 40 28 40 32 L52 32 C52 20 42 12 32 12 Z" fill="currentColor"/>
+          </svg>
+        </div>
+        <div class="chooser-body">
+          <div class="chooser-row">
+            <h3>PingIdentity</h3>
+            <span class="pill pill-muted">Coming soon</span>
+          </div>
+          <p class="chooser-desc">PingFederate / PingOne support is on the roadmap.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      const KEY = "okta-role-string-theme";
+      function apply(t) {
+        document.documentElement.setAttribute("data-theme", t);
+        try { localStorage.setItem(KEY, t); } catch (e) {}
+      }
+      let t = null;
+      try { t = localStorage.getItem(KEY); } catch (e) {}
+      if (!t) t = (window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+      apply(t);
+      const btn = document.getElementById("themeToggle");
+      if (btn) btn.addEventListener("click", () => {
+        apply(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
+      });
+    })();
+  </script>
+</body>
+</html>

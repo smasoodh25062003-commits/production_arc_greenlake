@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Transfer Subscriptions — HPE GreenLake</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --hpe-green:      #01A982;
+      --hpe-green-dim:  #00755A;
+      --hpe-green-glow: rgba(1,169,130,0.10);
+      --hpe-cyan:       #0D7AC7;
+      --hpe-purple:     #6A30C7;
+      --black:          #FFFFFF;
+      --surface:        #F7F7F7;
+      --panel:          #FFFFFF;
+      --panel-alt:      #F2F2F2;
+      --border:         #E4E6EB;
+      --border-bright:  #B0B0B0;
+      --text:           #1A1A1A;
+      --text-secondary: #4B5563;
+      --muted:          #6B7280;
+      --warn:           #C63E3E;
+      --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      background: #FFFFFF;
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-weight: 400;
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      letter-spacing: -0.005em;
+    }
+
+    /* Header */
+    .header { position: fixed; top:0; left:0; right:0; z-index: 100; height: 68px; display: flex; align-items: center; justify-content: space-between; padding: 0 48px; background: #FFFFFF; border-bottom: 1px solid var(--border); box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+    .logo-area { display:flex;align-items:center;gap:14px;text-decoration:none;cursor:pointer; color: var(--text); }
+    .hpe-badge { width:38px;height:38px;background:var(--hpe-green);display:flex;align-items:center;justify-content:center;clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);transition:transform .3s ease; }
+    .logo-area:hover .hpe-badge { transform:rotate(30deg) scale(1.1); }
+    .logo-text-group { display:flex;flex-direction:column;gap:2px; }
+    .logo-eyebrow { font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--hpe-green);font-weight:700; }
+    .logo-name { font-size:16px;font-weight:700;color:var(--text);letter-spacing:-.022em; }
+    .logo-name em { color:var(--hpe-green);font-style:normal; }
+    .header-nav { display:flex;align-items:center;gap:8px; }
+    .nav-pill { display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:4px;border:1px solid #D5D5D5;font-size:12px;letter-spacing:.01em;color:#333;background:#FFFFFF;transition:all .15s ease;text-decoration:none;font-weight:600; }
+    .nav-pill:hover { border-color:var(--hpe-green);color:var(--hpe-green);background:var(--hpe-green-glow); }
+    .status-dot { width:6px;height:6px;border-radius:50%;background:var(--hpe-green); }
+
+    /* Page */
+    .page { position:relative;z-index:1;padding:110px 64px 80px; }
+    .page-wrap { max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:28px; }
+
+    .page-hero { display:flex;align-items:flex-end;justify-content:space-between;padding-bottom:24px;border-bottom:1px solid var(--border); }
+    .page-overline { font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--hpe-green);margin-bottom:12px;display:flex;align-items:center;gap:10px;font-weight:700; }
+    .page-overline::before { content:'';width:24px;height:1px;background:var(--hpe-green); }
+    .page-title { font-size:clamp(32px,4vw,48px);font-weight:800;letter-spacing:-.028em;line-height:1;color:var(--text); }
+    .page-title em { font-style:normal;color:var(--hpe-green); }
+    .page-subtitle { margin-top:14px;font-size:15px;color:var(--text-secondary);line-height:1.7;max-width:680px;font-weight:400; }
+
+    /* Cards */
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; box-shadow: var(--shadow-sm); }
+    .card-header { padding: 18px 24px; border-bottom: 1px solid var(--border); background: #FAFBFC; display:flex;align-items:center;justify-content:space-between;gap:12px; }
+    .card-title { font-size:13px;font-weight:700;color:var(--text);letter-spacing:.02em;text-transform:uppercase; }
+    .card-body { padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+
+    .field-label { font-family: var(--font-sans); font-size:12px; font-weight:700; letter-spacing:.02em; text-transform:uppercase; color: var(--text); margin-bottom:8px; display:flex;align-items:center;gap:8px; }
+    .field-label-dot { width:6px;height:6px;border-radius:50%;background:var(--hpe-green); }
+    .field-hint { font-size:12px; color:var(--muted); margin-top:8px; line-height:1.6; }
+
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 720px) { .row { grid-template-columns: 1fr; } }
+
+    input[type="text"], textarea, select {
+      width: 100%;
+      background: #FFFFFF;
+      border: 1px solid #D5D5D5;
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      font-weight: 500;
+      padding: 10px 12px;
+      border-radius: 4px;
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    input[type="text"]::placeholder, textarea::placeholder { color: var(--muted); font-weight: 400; }
+    input:focus, textarea:focus, select:focus { border-color: var(--hpe-green); box-shadow: 0 0 0 3px rgba(1,169,130,.12); }
+    textarea { resize: vertical; min-height: 120px; line-height: 1.6; font-family: 'Courier New', monospace; font-size: 13px; }
+
+    .status-pill { font-size:11px;font-weight:700;padding:4px 10px;border-radius:4px;letter-spacing:.03em;text-transform:uppercase; }
+    .status-pill.set   { background:rgba(1,169,130,.1);color:var(--hpe-green-dim);border:1px solid rgba(1,169,130,.3); }
+    .status-pill.unset { background:#F5F6F8;color:var(--muted);border:1px solid var(--border); }
+
+    /* File drop */
+    .drop {
+      border: 1.5px dashed #B0B0B0;
+      border-radius: 6px;
+      padding: 28px;
+      background: #FAFBFC;
+      display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    .drop:hover, .drop.drag { border-color: var(--hpe-green); background: var(--hpe-green-glow); }
+    .drop-title { font-size: 14px; color: var(--text); font-weight:600; }
+    .drop-sub { font-size: 12px; color: var(--muted); }
+    .drop-file { font-size: 12px; color: var(--hpe-green-dim); font-weight:600; word-break: break-all; }
+
+    /* Buttons */
+    .actions { display: flex; gap: 10px; justify-content: flex-end; align-items:center; flex-wrap: wrap; }
+    .btn { padding:11px 22px;border-radius:4px;border:1px solid transparent;cursor:pointer;font-family:var(--font-sans);font-size:13px;font-weight:700;letter-spacing:.01em;transition:all .15s ease;display:inline-flex;align-items:center;gap:8px; }
+    .btn-primary { background:var(--hpe-green);color:#FFFFFF;border-color:var(--hpe-green); }
+    .btn-primary:hover:not(:disabled) { background:var(--hpe-green-dim); border-color:var(--hpe-green-dim); box-shadow:0 2px 6px rgba(1,169,130,.25); }
+    .btn-primary:disabled { opacity:.45;cursor:not-allowed;box-shadow:none; }
+    .btn-ghost { background: #FFFFFF; color: var(--text); border-color: var(--border-bright); }
+    .btn-ghost:hover { background: #F5F6F8; border-color: var(--text); color: var(--text); }
+
+    /* Stats */
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .stat { background: #FAFBFC; border: 1px solid var(--border); border-radius: 6px; padding: 16px 18px; }
+    .stat-label { font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;font-weight:700; }
+    .stat-val { font-size: 28px; font-weight: 800; letter-spacing: -.02em; color: var(--text); }
+    .stat.ok .stat-val  { color: var(--hpe-green-dim); }
+    .stat.bad .stat-val { color: var(--warn); }
+    .stat.tot .stat-val { color: var(--hpe-cyan); }
+
+    /* Results table */
+    .table-wrap { overflow: auto; max-height: 420px; border: 1px solid var(--border); border-radius: 6px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th {
+      position: sticky; top: 0; background: #FAFBFC; padding: 12px 16px;
+      text-align: left; font-size: 11px; font-weight: 700;
+      color: #4B5563; letter-spacing: .04em; text-transform: uppercase;
+      border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    tbody tr { border-bottom: 1px solid #EEF0F3; }
+    tbody tr:nth-child(even) { background: #FAFBFC; }
+    tbody tr:hover { background: rgba(1,169,130,.04); }
+    tbody td { padding: 11px 16px; color: var(--text); font-size: 13px; font-weight: 500; vertical-align: top; word-break: break-word; }
+    .badge { display:inline-block;padding:4px 10px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase; }
+    .badge-green { background:rgba(1,169,130,.1);color:var(--hpe-green-dim);border:1px solid rgba(1,169,130,.3); }
+    .badge-red   { background:rgba(198,62,62,.08);color:var(--warn);border:1px solid rgba(198,62,62,.3); }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: #FFFFFF; border: 1px solid var(--border-bright); border-radius: 4px;
+      padding: 12px 22px; font-size: 13px; color: var(--text); font-weight: 600;
+      z-index: 9999; opacity: 0; pointer-events: none; transition: all .3s;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.success { color: var(--hpe-green-dim); border-color: rgba(1,169,130,.4); }
+    .toast.error   { color: var(--warn); border-color: rgba(198,62,62,.4); }
+
+    /* Loading */
+    .spinner { width:16px;height:16px;border:2px solid rgba(0,0,0,.12);border-top-color:#FFFFFF;border-radius:50%;animation:spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .tab-row { display:flex; gap: 4px; padding: 3px; background: #F5F6F8; border: 1px solid var(--border); border-radius: 4px; width: max-content; }
+    .tab-btn { background: transparent; border: none; color: #555; font-family: var(--font-sans); font-size: 12px; font-weight: 700; padding: 7px 16px; border-radius: 3px; cursor: pointer; transition: all .15s ease; }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { background: var(--hpe-green); color: #FFFFFF; }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <a href="/GreenLakeTools.html" class="logo-area">
+    <div class="hpe-badge">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12 2L3 7v5c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z"/></svg>
+    </div>
+    <div class="logo-text-group">
+      <div class="logo-eyebrow">HPE GreenLake</div>
+      <div class="logo-name">Platform <em>Tools</em></div>
+    </div>
+  </a>
+  <nav class="header-nav">
+    <div class="nav-pill"><div class="status-dot"></div>Transfer Subscriptions</div>
+    <a href="/GreenLakeTools.html" class="nav-pill">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      Home
+    </a>
+  </nav>
+</header>
+
+<main class="page">
+  <div class="page-wrap">
+
+    <section class="page-hero">
+      <div>
+        <div class="page-overline">CCS Manager</div>
+        <h1 class="page-title">Transfer <em>Subscriptions</em></h1>
+        <p class="page-subtitle">Move subscriptions between workspaces by uploading a CSV of subscription keys, or pasting them directly. Works with the Aquila CCS-Manager session (<code>subscription-transfer</code>) or the public GreenLake API fallback.</p>
+      </div>
+    </section>
+
+    <!-- AUTH -->
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title">Request Headers</div>
+        <span id="headers-status" class="status-pill unset">NOT SET</span>
+      </div>
+      <div class="card-body">
+        <div>
+          <label class="field-label"><span class="field-label-dot"></span>Base URL</label>
+          <input type="text" id="base-url" value="https://aquila-user-api.common.cloud.hpe.com" readonly />
+        </div>
+
+        <div>
+          <label class="field-label"><span class="field-label-dot"></span>Raw Headers</label>
+          <textarea id="raw-headers" placeholder="# authorization&#10;# Bearer eyJhbG...&#10;# cookie&#10;# ccs-csrftoken=...; hpeIamLang=...;" style="min-height:160px;"></textarea>
+          <div class="field-hint">Paste raw headers copied from DevTools — Authorization and Cookie are extracted automatically (same format as Transfer Devices).</div>
+        </div>
+
+        <div class="actions">
+          <button class="btn btn-ghost" onclick="clearHeaders()">Clear</button>
+          <button class="btn btn-primary" onclick="applyHeaders()">Apply Headers</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TRANSFER -->
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title">Transfer Subscriptions</div>
+      </div>
+      <div class="card-body">
+
+        <div class="row">
+          <div>
+            <label class="field-label"><span class="field-label-dot"></span>Source Workspace ID <span style="color:var(--warn)">*</span></label>
+            <input type="text" id="source-workspace" placeholder="Source platform_customer_id" autocomplete="off" />
+          </div>
+          <div>
+            <label class="field-label"><span class="field-label-dot"></span>Destination Workspace ID <span style="color:var(--warn)">*</span></label>
+            <input type="text" id="dest-workspace" placeholder="Destination platform_customer_id" autocomplete="off" />
+          </div>
+        </div>
+
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
+            <label class="field-label" style="margin:0;"><span class="field-label-dot"></span>Subscription Keys</label>
+            <div class="tab-row" id="input-tabs">
+              <button type="button" class="tab-btn active" data-mode="paste">Paste</button>
+              <button type="button" class="tab-btn" data-mode="csv">Upload CSV</button>
+            </div>
+          </div>
+
+          <div id="paste-pane">
+            <textarea id="keys-input" placeholder="Paste Subscription Keys — comma or newline separated&#10;e.g.  A1B2C3D4E5F6, G7H8I9J0K1L2  or one per line..." style="min-height:140px;"></textarea>
+            <div class="field-hint" id="keys-count">0 keys entered</div>
+          </div>
+
+          <div id="csv-pane" class="hidden">
+            <div class="drop" id="drop">
+              <div class="drop-title" id="drop-title">Click or drop a CSV here</div>
+              <div class="drop-sub" id="drop-sub">Must contain a <strong style="color:var(--hpe-green-dim)">Subscription Key</strong> column</div>
+              <div class="drop-file hidden" id="drop-file"></div>
+            </div>
+            <input type="file" id="file-input" accept=".csv,.txt" class="hidden" />
+            <div class="field-hint">Need a template? <a href="#" onclick="event.preventDefault(); downloadTemplate();" style="color:var(--hpe-green-dim);text-decoration:none;font-weight:600;">Download CSV template</a>.</div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn btn-ghost" onclick="clearKeys()">Clear</button>
+          <button class="btn btn-primary" id="run-btn" onclick="runTransfer()">
+            <span id="run-label">Transfer Subscriptions</span>
+            <span id="run-spin" class="spinner hidden"></span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- RESULTS -->
+    <section class="card hidden" id="results-card">
+      <div class="card-header">
+        <div class="card-title">Results</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span id="elapsed" class="status-pill unset">—</span>
+          <button class="btn btn-ghost" onclick="exportResults()">Export CSV</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="stats">
+          <div class="stat tot"><div class="stat-label">Total</div><div class="stat-val" id="stat-total">0</div></div>
+          <div class="stat ok"><div class="stat-label">Transferred</div><div class="stat-val" id="stat-ok">0</div></div>
+          <div class="stat bad"><div class="stat-label">Failed</div><div class="stat-val" id="stat-bad">0</div></div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th style="width:40px">#</th><th>Subscription Key</th><th>Status</th><th>Details</th></tr>
+            </thead>
+            <tbody id="results-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API_URL = (window.location.origin || 'http://localhost:5000') + '/api/ccs/transfer-subscriptions';
+const state = { file: null, lastResults: null, parsedHeaders: {}, inputMode: 'paste' };
+
+function showToast(msg, kind) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show ' + (kind || '');
+  setTimeout(() => { el.classList.remove('show'); }, 3000);
+}
+
+/* Tabs: paste vs csv */
+document.querySelectorAll('#input-tabs .tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#input-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.inputMode = btn.dataset.mode;
+    document.getElementById('paste-pane').classList.toggle('hidden', state.inputMode !== 'paste');
+    document.getElementById('csv-pane').classList.toggle('hidden',   state.inputMode !== 'csv');
+  });
+});
+
+function parseKeysText(text) {
+  return (text || '')
+    .replace(/\r/g, '\n')
+    .split(/[,\n]/)
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+const keysInput = document.getElementById('keys-input');
+if (keysInput) {
+  keysInput.addEventListener('input', () => {
+    const n = parseKeysText(keysInput.value).length;
+    document.getElementById('keys-count').textContent = n + ' key' + (n === 1 ? '' : 's') + ' entered';
+  });
+}
+
+function clearKeys() {
+  document.getElementById('keys-input').value = '';
+  document.getElementById('keys-count').textContent = '0 keys entered';
+  state.file = null;
+  const df = document.getElementById('drop-file');
+  if (df) { df.textContent = ''; df.classList.add('hidden'); }
+  const dt = document.getElementById('drop-title');
+  if (dt) dt.textContent = 'Click or drop a CSV here';
+  const ds = document.getElementById('drop-sub');
+  if (ds) ds.innerHTML = 'Must contain a <strong style="color:var(--hpe-green-dim)">Subscription Key</strong> column';
+  const fi = document.getElementById('file-input');
+  if (fi) fi.value = '';
+}
+
+/* Raw header parsing — mirrors Transfer Devices */
+function parseRawHeaders(raw) {
+  const lines = raw.split('\n');
+  const headers = {};
+  let currentKey = null, currentValue = [];
+  for (let line of lines) {
+    line = line.trim();
+    if (!line) continue;
+    line = line.replace(/^#+\s*/, '').trim();
+    if (!line) continue;
+    const low = line.toLowerCase();
+    if (low === 'authorization') {
+      if (currentKey && currentValue.length) headers[currentKey] = currentValue.join(' ');
+      currentKey = 'Authorization'; currentValue = [];
+    } else if (low === 'cookie') {
+      if (currentKey && currentValue.length) headers[currentKey] = currentValue.join(' ');
+      currentKey = 'Cookie'; currentValue = [];
+    } else {
+      if (currentKey) currentValue.push(line);
+    }
+  }
+  if (currentKey && currentValue.length) headers[currentKey] = currentValue.join(' ');
+  headers['Accept'] = 'application/json';
+  return headers;
+}
+
+function applyHeaders() {
+  const raw = document.getElementById('raw-headers').value.trim();
+  if (!raw) { showToast('Paste your headers first.', 'error'); return; }
+  const parsed = parseRawHeaders(raw);
+  const keys = Object.keys(parsed).filter(k => k !== 'Accept');
+  if (!parsed.Authorization && !parsed.Cookie) {
+    showToast('No Authorization or Cookie found — check format.', 'error');
+    return;
+  }
+  state.parsedHeaders = parsed;
+  const pill = document.getElementById('headers-status');
+  pill.textContent = keys.join(' + ') + ' SET';
+  pill.className = 'status-pill set';
+  showToast('Headers applied — ' + keys.join(', ') + ' extracted.', 'success');
+}
+
+function clearHeaders() {
+  document.getElementById('raw-headers').value = '';
+  state.parsedHeaders = {};
+  const pill = document.getElementById('headers-status');
+  pill.textContent = 'NOT SET';
+  pill.className = 'status-pill unset';
+  showToast('Headers cleared.', 'info');
+}
+
+/* File drop */
+const drop = document.getElementById('drop');
+const fileInput = document.getElementById('file-input');
+drop.addEventListener('click', () => fileInput.click());
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+drop.addEventListener('drop', e => {
+  e.preventDefault(); drop.classList.remove('drag');
+  if (e.dataTransfer.files && e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => { if (e.target.files[0]) setFile(e.target.files[0]); });
+
+function setFile(f) {
+  if (!/\.(csv|txt)$/i.test(f.name)) { showToast('CSV or TXT file required.', 'error'); return; }
+  state.file = f;
+  const df = document.getElementById('drop-file');
+  df.textContent = f.name + '  (' + (f.size/1024).toFixed(1) + ' KB)';
+  df.classList.remove('hidden');
+  document.getElementById('drop-title').textContent = 'File ready';
+  document.getElementById('drop-sub').textContent = 'Click to change';
+}
+
+/* CSV template */
+function downloadTemplate() {
+  const csv = 'Subscription Key\nA1B2C3D4E5F6\nG7H8I9J0K1L2\n';
+  const blob = new Blob([csv], {type: 'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'transfer_subscriptions_template.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* Transfer */
+async function runTransfer() {
+  const hasAuth = state.parsedHeaders && (state.parsedHeaders.Authorization || state.parsedHeaders.Cookie);
+  if (!hasAuth) { showToast('Apply your headers first (Authorization / Cookie).', 'error'); return; }
+
+  const source = document.getElementById('source-workspace').value.trim();
+  const dest   = document.getElementById('dest-workspace').value.trim();
+  if (!source) { showToast('Source workspace ID required.', 'error'); return; }
+  if (!dest)   { showToast('Destination workspace ID required.', 'error'); return; }
+  if (source === dest) { showToast('Source and destination cannot be the same.', 'error'); return; }
+
+  const baseUrl = document.getElementById('base-url').value.trim();
+  const fd = new FormData();
+  fd.append('parsed_headers', JSON.stringify(state.parsedHeaders));
+  fd.append('base_url', baseUrl);
+  fd.append('source_workspace_id', source);
+  fd.append('dest_workspace_id', dest);
+
+  let count = 0;
+  if (state.inputMode === 'csv') {
+    if (!state.file) { showToast('CSV file required.', 'error'); return; }
+    fd.append('file', state.file);
+    count = -1;
+  } else {
+    const keys = parseKeysText(document.getElementById('keys-input').value);
+    if (!keys.length) { showToast('Paste at least one subscription key.', 'error'); return; }
+    fd.append('keys', keys.join('\n'));
+    count = keys.length;
+  }
+
+  const msg = count > 0
+    ? 'Transfer ' + count + ' subscription(s) from ' + source + ' to ' + dest + '?'
+    : 'Transfer all subscriptions in CSV from ' + source + ' to ' + dest + '?';
+  if (!confirm(msg)) return;
+
+  setLoading(true);
+  try {
+    const res = await fetch(API_URL, { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) { showToast('Error: ' + (data.error || res.status), 'error'); return; }
+    renderResults(data);
+    showToast(data.successful + ' transferred · ' + data.failed + ' failed', data.failed ? 'error' : 'success');
+  } catch (err) {
+    showToast('Network error: ' + err.message, 'error');
+  } finally {
+    setLoading(false);
+  }
+}
+
+function setLoading(v) {
+  document.getElementById('run-btn').disabled = v;
+  document.getElementById('run-spin').classList.toggle('hidden', !v);
+  document.getElementById('run-label').textContent = v ? 'Transferring…' : 'Transfer Subscriptions';
+}
+
+function renderResults(data) {
+  state.lastResults = data;
+  document.getElementById('results-card').classList.remove('hidden');
+  document.getElementById('stat-total').textContent = data.total || 0;
+  document.getElementById('stat-ok').textContent = data.successful || 0;
+  document.getElementById('stat-bad').textContent = data.failed || 0;
+  const el = document.getElementById('elapsed');
+  el.textContent = (data.elapsed_seconds || 0) + 's';
+  el.className = 'status-pill set';
+
+  const body = document.getElementById('results-body');
+  body.innerHTML = '';
+  (data.details || []).forEach((d, i) => {
+    const tr = document.createElement('tr');
+    const badge = d.success
+      ? '<span class="badge badge-green">' + (d.status || 'OK') + '</span>'
+      : '<span class="badge badge-red">FAILED</span>';
+    const detail = d.success ? (d.status || '') : (d.error || '');
+    tr.innerHTML =
+      '<td>' + (i+1) + '</td>' +
+      '<td>' + escapeHtml(d.key || '') + '</td>' +
+      '<td>' + badge + '</td>' +
+      '<td>' + escapeHtml(detail) + '</td>';
+    body.appendChild(tr);
+  });
+  document.getElementById('results-card').scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function exportResults() {
+  if (!state.lastResults) { showToast('Nothing to export.', 'error'); return; }
+  const rows = [['Subscription Key','Success','Status','Error']];
+  (state.lastResults.details || []).forEach(d => {
+    rows.push([
+      d.key || '',
+      d.success ? 'true' : 'false',
+      d.success ? (d.status || '') : '',
+      d.success ? '' : (d.error || '')
+    ]);
+  });
+  const csv = rows.map(r => r.map(v => {
+    const s = String(v == null ? '' : v);
+    return /[,"\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+  }).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'transfer_subscriptions_results.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+</script>
+</body>
+</html>

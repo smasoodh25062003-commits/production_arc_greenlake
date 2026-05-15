@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HPE Role String Generator - Start</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+</head>
+<body class="chooser-page">
+  <script>window.__SSO_TOOLS_ROOT__={{ (request.script_root or "")|tojson }};</script>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-dot" aria-hidden="true"></span>
+      <h1><span class="brand-accent">HPE</span> Role String Generator</h1>
+    </div>
+    <div class="topbar-actions">
+      <a href="/GreenLakeTools.html" class="topbar-platform-link">← Platform Tools</a>
+      <button type="button" id="themeToggle" class="icon-btn" aria-label="Toggle theme" title="Toggle theme">
+        <span class="theme-icon theme-icon-light">☀</span>
+        <span class="theme-icon theme-icon-dark">☾</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="chooser-main">
+    <section class="chooser-hero">
+      <span class="eyebrow">Welcome</span>
+      <h2 class="chooser-title">How would you like to start?</h2>
+      <p class="chooser-sub">Build a new Okta role-assignment string, or troubleshoot a user's SSO login with SAML diagnostics.</p>
+    </section>
+
+    <div class="chooser-grid chooser-grid-2" role="list">
+      <a class="chooser-card chooser-card-available" href="{{ url_for('okta_select') }}" role="listitem">
+        <div class="chooser-badge" aria-hidden="true">＋</div>
+        <div class="chooser-body">
+          <div class="chooser-row">
+            <h3>New configuration</h3>
+            <span class="pill pill-success">Start fresh</span>
+          </div>
+          <p class="chooser-desc">Build a new Okta role-assignment string with a guided form, live preview, and a hierarchy diagram.</p>
+          <code class="chooser-preview"><span class="accent">Okta</span> <span class="muted">→ With / without groups → Generator</span></code>
+        </div>
+        <div class="chooser-cta">Continue
+          <span class="arrow" aria-hidden="true">→</span>
+        </div>
+      </a>
+
+      <a class="chooser-card chooser-card-available" href="{{ url_for('existing_config') }}" role="listitem">
+        <div class="chooser-badge" aria-hidden="true">↺</div>
+        <div class="chooser-body">
+          <div class="chooser-row">
+            <h3>SAML diagnostics</h3>
+            <span class="pill pill-info">Troubleshoot</span>
+          </div>
+          <p class="chooser-desc">Upload a SAML-tracer or HAR capture from a user login and walk through nine GreenLake SSO checks.</p>
+          <code class="chooser-preview"><span class="muted">SAML-tracer</span> <span class="accent">.json</span> <span class="muted">/ HAR / XML</span></code>
+        </div>
+        <div class="chooser-cta">Open
+          <span class="arrow" aria-hidden="true">→</span>
+        </div>
+      </a>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      const KEY = "okta-role-string-theme";
+      function apply(t) {
+        document.documentElement.setAttribute("data-theme", t);
+        try { localStorage.setItem(KEY, t); } catch (e) {}
+      }
+      let t = null;
+      try { t = localStorage.getItem(KEY); } catch (e) {}
+      if (!t) t = (window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+      apply(t);
+      const btn = document.getElementById("themeToggle");
+      if (btn) btn.addEventListener("click", () => {
+        apply(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
+      });
+    })();
+  </script>
+</body>
+</html>

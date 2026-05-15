@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HPE GreenLake — SAML Validator</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ── TOKENS ─────────────────────────────────────────────────────────────── */
+:root{
+  --ink:#0c1220; --ink2:#131d2e; --ink3:#192540;
+  --rim:#1f2f47; --rim2:#263a55; --rim3:#2e455f;
+  --steel:#3a5470; --fog:#5a7a96; --mist:#7d9ab5;
+  --text:#dde8f2; --text2:#9ab4c8; --text3:#6a8ba4;
+  --teal:#00c8d7; --teal2:#00a8b5; --teal-glow:rgba(0,200,215,.12);
+  --lime:#22d87a;  --lime-bg:rgba(34,216,122,.08);   --lime-rim:rgba(34,216,122,.25);
+  --rose:#f05656;  --rose-bg:rgba(240,86,86,.08);    --rose-rim:rgba(240,86,86,.25);
+  --amber:#f5a623; --amber-bg:rgba(245,166,35,.08);  --amber-rim:rgba(245,166,35,.25);
+  --sky:#4da8f5;   --sky-bg:rgba(77,168,245,.08);    --sky-rim:rgba(77,168,245,.25);
+  --mono:'JetBrains Mono',monospace;
+  --sans:'Syne',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--ink)}
+body{color:var(--text);font-family:var(--sans);display:flex;flex-direction:column}
+body::before{content:'';position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:0;opacity:.4}
+.hdr{
+  display:flex;align-items:center;gap:16px;padding:0 28px;height:58px;
+  background:linear-gradient(90deg,var(--ink2),var(--ink3));
+  border-bottom:1px solid var(--rim2);flex-shrink:0;position:relative;z-index:10;
+}
+.hdr::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--teal),transparent);opacity:.4}
+.brand{display:flex;align-items:center;gap:12px}
+.brand-mark{
+  width:38px;height:38px;border-radius:10px;flex-shrink:0;
+  background:linear-gradient(135deg,#005f8c 0%,#00c8d7 100%);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-weight:700;font-size:10px;color:#fff;letter-spacing:-.3px;
+  box-shadow:0 0 16px rgba(0,200,215,.3);
+}
+.brand-name{font-family:var(--sans);font-weight:800;font-size:16px;
+  background:linear-gradient(90deg,#fff,var(--teal));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  letter-spacing:.03em}
+.brand-tag{font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:1px}
+.hdr-mid{flex:1;display:flex;align-items:center;justify-content:center;gap:8px}
+.api-row{display:flex;align-items:center;gap:8px;
+  background:var(--ink3);border:1px solid var(--rim2);border-radius:8px;padding:5px 10px}
+.api-tag{font-family:var(--mono);font-size:9px;font-weight:600;color:var(--text3);letter-spacing:.08em;text-transform:uppercase}
+.api-in{background:none;border:none;font-family:var(--mono);font-size:11px;color:var(--text2);
+  outline:none;width:200px}
+.api-in:focus{color:var(--text)}
+.api-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;transition:all .3s}
+.api-dot.ok{background:var(--lime);box-shadow:0 0 8px var(--lime)}
+.api-dot.err{background:var(--rose);box-shadow:0 0 8px var(--rose)}
+.api-dot.busy{background:var(--amber);animation:pulse 1s infinite}
+.hdr-right{display:flex;align-items:center;gap:10px}
+.pill{padding:4px 12px;border-radius:20px;font-family:var(--mono);font-size:10px;font-weight:600;
+  letter-spacing:.05em;border:1px solid var(--rim);color:var(--text3);transition:all .3s}
+.pill.running{border-color:rgba(0,200,215,.4);color:var(--teal);background:var(--teal-glow);animation:pulse 2s infinite}
+.pill.done-ok{border-color:var(--lime-rim);color:var(--lime);background:var(--lime-bg)}
+.pill.done-fail{border-color:var(--rose-rim);color:var(--rose);background:var(--rose-bg)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes slideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.shell{display:flex;flex:1;overflow:hidden;position:relative;z-index:1}
+.side{
+  width:270px;flex-shrink:0;background:var(--ink2);
+  border-right:1px solid var(--rim);display:flex;flex-direction:column;overflow:hidden;
+}
+.side-hdr{padding:16px 18px 12px;border-bottom:1px solid var(--rim);
+  display:flex;align-items:center;justify-content:space-between}
+.side-title{font-family:var(--mono);font-size:9px;font-weight:600;color:var(--text3);
+  letter-spacing:.15em;text-transform:uppercase}
+.side-prog{font-family:var(--mono);font-size:11px;color:var(--text2)}
+.steplist{flex:1;overflow-y:auto;padding:6px 0}
+.step-row{
+  display:flex;align-items:center;gap:11px;padding:11px 18px;
+  cursor:pointer;border-left:3px solid transparent;transition:all .15s;
+}
+.step-row:hover{background:rgba(255,255,255,.02)}
+.step-row.cur{background:rgba(0,200,215,.04);border-left-color:var(--teal)}
+.step-row.s-pass{border-left-color:var(--lime)}
+.step-row.s-fail{border-left-color:var(--rose)}
+.step-row.s-warn{border-left-color:var(--amber)}
+.step-row.s-manual{border-left-color:var(--amber)}
+.step-row.s-skipped{opacity:.45}
+.step-num{
+  width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:9px;font-weight:700;flex-shrink:0;
+  background:var(--ink3);border:1px solid var(--rim2);color:var(--text3);transition:all .3s;
+}
+.step-row.s-pass   .step-num{background:var(--lime-bg);border-color:var(--lime-rim);color:var(--lime)}
+.step-row.s-fail   .step-num{background:var(--rose-bg);border-color:var(--rose-rim);color:var(--rose)}
+.step-row.s-warn   .step-num{background:var(--amber-bg);border-color:var(--amber-rim);color:var(--amber)}
+.step-row.s-manual .step-num{background:var(--amber-bg);border-color:var(--amber-rim);color:var(--amber)}
+.step-row.s-running .step-num{background:var(--teal-glow);border-color:var(--teal2);color:var(--teal)}
+.step-info{flex:1;min-width:0}
+.step-name{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.step-sub{font-size:10px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--mono)}
+.step-badge{
+  font-size:8px;font-weight:700;font-family:var(--mono);padding:2px 7px;
+  border-radius:4px;letter-spacing:.06em;flex-shrink:0;text-transform:uppercase;
+}
+.sb-pending{background:rgba(90,122,150,.15);color:var(--text3)}
+.sb-running{background:var(--teal-glow);color:var(--teal);animation:pulse 1s infinite}
+.sb-pass{background:var(--lime-bg);color:var(--lime);border:1px solid var(--lime-rim)}
+.sb-fail{background:var(--rose-bg);color:var(--rose);border:1px solid var(--rose-rim)}
+.sb-warn{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-rim)}
+.sb-manual{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-rim)}
+.sb-skipped{background:rgba(90,122,150,.1);color:var(--text3)}
+.side-stats{
+  border-top:1px solid var(--rim);padding:14px 18px;
+  display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;
+}
+.stat{text-align:center}
+.stat-val{font-family:var(--mono);font-size:20px;font-weight:700;line-height:1}
+.stat-lbl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-top:3px}
+.stat.pass .stat-val{color:var(--lime)}
+.stat.fail .stat-val{color:var(--rose)}
+.stat.pend .stat-val{color:var(--amber)}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.imp{
+  padding:16px 28px;border-bottom:1px solid var(--rim);
+  background:linear-gradient(90deg,var(--ink2),var(--ink3));
+  display:flex;align-items:center;gap:14px;flex-shrink:0;
+}
+.dropzone{
+  flex:1;border:1.5px dashed var(--rim3);border-radius:10px;
+  padding:14px 20px;display:flex;align-items:center;gap:14px;
+  cursor:pointer;transition:all .2s;
+}
+.dropzone:hover,.dropzone.over{border-color:var(--teal);background:var(--teal-glow)}
+.drop-ico{font-size:22px;flex-shrink:0}
+.drop-t{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px}
+.drop-s{font-size:11px;color:var(--text3);font-family:var(--mono)}
+#fileInput{display:none}
+.btn{padding:9px 20px;border-radius:8px;font-family:var(--mono);font-size:11px;font-weight:600;
+  cursor:pointer;letter-spacing:.06em;text-transform:uppercase;border:none;transition:all .2s;flex-shrink:0}
+.btn-imp{background:linear-gradient(135deg,#005f8c,#00c8d7);color:#fff;
+  box-shadow:0 0 18px rgba(0,200,215,.2)}
+.btn-imp:hover{opacity:.9;transform:translateY(-1px)}
+.btn-run{background:transparent;border:1.5px solid var(--lime);color:var(--lime);display:none}
+.btn-run:hover{background:var(--lime-bg)}
+.btn-run.show{display:block}
+.btn-rst{background:transparent;border:1.5px solid var(--rim2);color:var(--text3);display:none}
+.btn-rst:hover{border-color:var(--rose);color:var(--rose)}
+.btn-rst.show{display:block}
+.content{flex:1;overflow:hidden;display:flex;flex-direction:column;position:relative}
+.parse-ov{
+  position:absolute;inset:0;
+  background:rgba(12,18,32,.88);
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  gap:16px;z-index:50;backdrop-filter:blur(6px);
+}
+.parse-ov.show{display:flex}
+.parse-spinner{font-size:40px;animation:spin .9s linear infinite}
+.parse-title{font-family:var(--mono);font-size:14px;color:var(--teal);font-weight:600}
+.parse-sub{font-size:11px;color:var(--text3);font-family:var(--mono)}
+.scroll{flex:1;overflow-y:auto;padding:24px 28px}
+::-webkit-scrollbar{width:5px} ::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--rim2);border-radius:3px}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:100%;gap:16px;text-align:center;color:var(--text3)}
+.empty-ico{font-size:56px;opacity:.2}
+.empty-title{font-size:16px;font-weight:700;color:var(--text2)}
+.empty-sub{font-size:12px;line-height:1.8;max-width:380px;font-family:var(--mono)}
+.card{
+  background:var(--ink2);border:1px solid var(--rim);border-radius:14px;
+  margin-bottom:14px;overflow:hidden;
+  transition:border-color .3s,box-shadow .3s;
+  animation:slideIn .25s ease;
+}
+.card.cur-card{border-color:var(--teal2);box-shadow:0 0 30px rgba(0,200,215,.06)}
+.card.s-pass{border-color:rgba(34,216,122,.3);border-left:3px solid var(--lime)}
+.card.s-fail{border-color:rgba(240,86,86,.3);border-left:3px solid var(--rose)}
+.card.s-warn{border-color:rgba(245,166,35,.3);border-left:3px solid var(--amber)}
+.card.s-manual{border-color:rgba(245,166,35,.3);border-left:3px solid var(--amber)}
+.card.s-skipped{opacity:.55;border-left:3px solid var(--rim2)}
+.card-hdr{
+  display:flex;align-items:center;gap:14px;padding:15px 20px;cursor:pointer;
+  transition:background .15s;
+}
+.card-hdr:hover{background:rgba(255,255,255,.015)}
+.card-ico{font-size:20px;flex-shrink:0}
+.card-ttl{flex:1}
+.card-name{font-size:13px;font-weight:700;color:var(--text);letter-spacing:.01em}
+.card-sub{font-size:11px;color:var(--text3);margin-top:2px;font-family:var(--mono)}
+.card-right{display:flex;align-items:center;gap:10px}
+.card-badge{font-size:10px;font-weight:700;padding:4px 12px;border-radius:20px;
+  font-family:var(--mono);letter-spacing:.05em;text-transform:uppercase}
+.cba-pending{background:rgba(90,122,150,.15);color:var(--text3)}
+.cba-pass{background:var(--lime-bg);color:var(--lime);border:1px solid var(--lime-rim)}
+.cba-fail{background:var(--rose-bg);color:var(--rose);border:1px solid var(--rose-rim)}
+.cba-warn{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-rim)}
+.cba-manual{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-rim)}
+.cba-running{background:var(--teal-glow);color:var(--teal);border:1px solid rgba(0,200,215,.3);animation:pulse 1s infinite}
+.cba-skipped{background:rgba(90,122,150,.1);color:var(--text3);border:1px solid var(--rim)}
+.card-body{border-top:1px solid var(--rim);padding:18px 20px;display:none}
+.card-body.open{display:block;animation:fadeIn .2s ease}
+.msg{
+  padding:12px 16px;border-radius:10px;font-size:12px;line-height:1.65;
+  margin-bottom:14px;display:flex;align-items:flex-start;gap:12px;
+  font-family:var(--mono);
+}
+.msg.pass{background:var(--lime-bg);border:1px solid var(--lime-rim);color:var(--lime)}
+.msg.fail{background:var(--rose-bg);border:1px solid var(--rose-rim);color:var(--rose)}
+.msg.warn{background:var(--amber-bg);border:1px solid var(--amber-rim);color:var(--amber)}
+.msg.info{background:var(--sky-bg);border:1px solid var(--sky-rim);color:var(--sky)}
+.msg-ico{font-size:15px;flex-shrink:0;margin-top:1px}
+.msg-txt{flex:1} .msg-txt strong{color:var(--text)}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.cmp-box{background:var(--ink3);border:1px solid var(--rim);border-radius:9px;padding:12px 14px}
+.cmp-lbl{font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;
+  letter-spacing:.12em;margin-bottom:7px;font-family:var(--mono)}
+.cmp-val{font-size:12px;font-family:var(--mono);color:var(--text);word-break:break-all;line-height:1.5}
+.cmp-val.ok{color:var(--lime)} .cmp-val.bad{color:var(--rose)} .cmp-val.hi{color:var(--teal)}
+.fix{
+  background:rgba(245,166,35,.05);border:1px solid var(--amber-rim);
+  border-radius:9px;padding:13px 15px;font-size:11px;line-height:1.8;
+  color:var(--amber);margin-top:4px;font-family:var(--mono);
+}
+.fix strong{color:var(--text)}
+.idp-badge{
+  display:inline-flex;align-items:center;gap:10px;
+  background:var(--ink3);border:1px solid var(--rim2);border-radius:10px;
+  padding:12px 18px;margin-bottom:14px;
+}
+.idp-ico{font-size:28px}
+.idp-name{font-size:16px;font-weight:700;color:var(--text)}
+.idp-sub{font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:2px}
+.cert-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.cert-f{background:var(--ink3);border:1px solid var(--rim);border-radius:9px;padding:11px 13px}
+.cf-l{font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;
+  letter-spacing:.12em;font-family:var(--mono);margin-bottom:5px}
+.cf-v{font-size:11px;font-family:var(--mono);color:var(--text);word-break:break-all;line-height:1.4}
+.cf-v.ok{color:var(--lime)} .cf-v.bad{color:var(--rose)} .cf-v.warn{color:var(--amber)}
+.days-chip{
+  display:inline-block;padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700;
+  font-family:var(--mono);margin-left:8px;vertical-align:middle;
+}
+.time-bar{
+  background:var(--ink3);border:1px solid var(--rim);border-radius:9px;
+  padding:14px 16px;margin-bottom:14px;
+}
+.time-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--text2);line-height:2}
+.t-chip{background:var(--ink2);border:1px solid var(--rim2);border-radius:5px;
+  padding:2px 9px;font-size:10px;color:var(--teal)}
+.t-arrow{color:var(--text3);font-size:14px}
+.t-diff{font-weight:700;font-size:13px;padding:2px 10px;border-radius:5px;margin-left:6px}
+.manual{
+  background:var(--ink3);border:1px solid var(--amber-rim);border-radius:10px;padding:18px;
+}
+.manual-ttl{font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;
+  letter-spacing:.12em;font-family:var(--mono);margin-bottom:10px;
+  display:flex;align-items:center;gap:6px}
+.manual-inst{font-size:12px;color:var(--text2);line-height:1.75;margin-bottom:14px}
+.manual-found{
+  background:var(--ink2);border:1px solid var(--rim2);border-radius:7px;
+  padding:11px 14px;font-family:var(--mono);font-size:15px;font-weight:600;
+  color:var(--teal);word-break:break-all;margin-bottom:16px;
+}
+.manual-found small{font-size:9px;color:var(--text3);display:block;margin-bottom:4px;
+  text-transform:uppercase;letter-spacing:.1em}
+.manual-actions{display:flex;gap:10px;flex-wrap:wrap}
+.btn-ok{
+  padding:10px 22px;border-radius:7px;font-family:var(--mono);font-size:11px;font-weight:700;
+  cursor:pointer;background:var(--lime-bg);border:1.5px solid var(--lime);
+  color:var(--lime);transition:all .2s;letter-spacing:.05em;text-transform:uppercase;
+}
+.btn-ok:hover{background:rgba(34,216,122,.18);transform:translateY(-1px)}
+.btn-bad{
+  padding:10px 22px;border-radius:7px;font-family:var(--mono);font-size:11px;font-weight:700;
+  cursor:pointer;background:var(--rose-bg);border:1.5px solid var(--rose);
+  color:var(--rose);transition:all .2s;letter-spacing:.05em;text-transform:uppercase;
+}
+.btn-bad:hover{background:rgba(240,86,86,.18)}
+.nxt{display:flex;justify-content:flex-end;margin-top:16px}
+.btn-nxt{
+  padding:10px 24px;border-radius:8px;font-family:var(--mono);font-size:11px;
+  font-weight:700;cursor:pointer;letter-spacing:.06em;text-transform:uppercase;
+  background:linear-gradient(135deg,#005f8c,#00c8d7);color:#fff;border:none;
+  transition:all .2s;box-shadow:0 0 16px rgba(0,200,215,.2);
+  display:flex;align-items:center;gap:7px;
+}
+.btn-nxt:hover{opacity:.9;transform:translateY(-1px)}
+.override-banner{
+  display:flex;align-items:center;gap:10px;
+  background:var(--lime-bg);border:1px solid var(--lime-rim);border-radius:8px;
+  padding:10px 14px;margin-bottom:14px;font-family:var(--mono);font-size:12px;color:var(--lime);
+}
+.summary{
+  border-radius:14px;padding:24px 28px;text-align:center;margin-top:4px;
+  animation:slideIn .3s ease;
+}
+.summary.ok{background:var(--lime-bg);border:1px solid var(--lime-rim)}
+.summary.bad{background:var(--rose-bg);border:1px solid var(--rose-rim)}
+.sum-ico{font-size:44px;margin-bottom:10px}
+.sum-title{font-size:18px;font-weight:800;margin-bottom:8px}
+.summary.ok .sum-title{color:var(--lime)}
+.summary.bad .sum-title{color:var(--rose)}
+.sum-sub{font-size:12px;color:var(--text2);line-height:1.8;max-width:460px;margin:0 auto 18px;font-family:var(--mono)}
+.sum-counts{display:flex;justify-content:center;gap:28px}
+.sc{text-align:center}
+.sc-val{font-size:28px;font-weight:800;font-family:var(--mono)}
+.sc-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-top:3px}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div class="brand">
+    <div class="brand-mark">HPE</div>
+    <div>
+      <div class="brand-name">SAML Validator</div>
+      <div class="brand-tag">HPE GreenLake SSO Checker</div>
+    </div>
+  </div>
+  <div class="hdr-mid">
+    <div class="api-row">
+      <span class="api-tag">Backend</span>
+      <input class="api-in" id="apiUrl" value="http://localhost:5050" spellcheck="false">
+      <div class="api-dot busy" id="apiDot"></div>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <span class="pill ready" id="overallPill">READY</span>
+  </div>
+</div>
+<div class="shell">
+  <div class="side">
+    <div class="side-hdr">
+      <span class="side-title">Checks</span>
+      <span class="side-prog" id="sideProgress">0 / 9</span>
+    </div>
+    <div class="steplist" id="stepList"></div>
+    <div class="side-stats">
+      <div class="stat pass"><div class="stat-val" id="sPass">0</div><div class="stat-lbl">Pass</div></div>
+      <div class="stat fail"><div class="stat-val" id="sFail">0</div><div class="stat-lbl">Fail</div></div>
+      <div class="stat pend"><div class="stat-val" id="sPend">0</div><div class="stat-lbl">Pending</div></div>
+    </div>
+  </div>
+  <div class="main">
+    <div class="imp">
+      <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+        <div class="drop-ico">📄</div>
+        <div>
+          <div class="drop-t" id="dropTitle">Drop SAML file here — HAR, XML, JSON</div>
+          <div class="drop-s" id="dropSub">Supports .har .xml .json .txt .log — or click to browse</div>
+        </div>
+      </div>
+      <input type="file" id="fileInput" accept=".xml,.json,.har,.txt,.log,.saml">
+      <button class="btn btn-imp" onclick="document.getElementById('fileInput').click()">⬆ Import</button>
+      <button class="btn btn-run" id="runBtn" onclick="runChecks()">▶ Run</button>
+      <button class="btn btn-rst" id="rstBtn"  onclick="resetAll()">↺ Reset</button>
+    </div>
+    <div class="content">
+      <div class="parse-ov" id="parseOv">
+        <div class="parse-spinner">⚙️</div>
+        <div class="parse-title" id="parseTitle">Sending to Flask…</div>
+        <div class="parse-sub">Parsing SAML · Validating certificate · Extracting attributes</div>
+      </div>
+      <div class="scroll" id="scrollArea">
+        <div class="empty" id="emptyState">
+          <div class="empty-ico">🔐</div>
+          <div class="empty-title">No SAML file loaded</div>
+          <div class="empty-sub">
+            Import a SAML response (HAR JSON, raw XML, or base64) and click <strong style="color:var(--text2)">Run</strong>.<br><br>
+            The Flask backend parses every field, validates the X.509 certificate, checks the time window, and detects your IdP — then walks you through each step.
+          </div>
+        </div>
+        <div id="cardsContainer" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const STEPS = [
+  {id:'idp',         n:1, name:'Identity Provider',         sub:'Detect which IdP is sending the assertion', icon:'🏛'},
+  {id:'entity_id',   n:2, name:'Identifier (Entity ID)',     sub:'Audience restriction ↔ SP Entity ID',       icon:'🎯'},
+  {id:'acs_url',     n:3, name:'Reply URL (ACS URL)',        sub:'Assertion Consumer Service endpoint',        icon:'🔗'},
+  {id:'time_window', n:4, name:'Assertion Time Window',      sub:'NotBefore → NotOnOrAfter ≤ 74 min',         icon:'⏱'},
+  {id:'certificate', n:5, name:'X.509 Certificate',          sub:'Signing certificate validity & expiry',      icon:'🔐'},
+  {id:'nameid',      n:6, name:'NameID',                     sub:'User identifier — verify vs GreenLake',      icon:'👤'},
+  {id:'firstname',   n:7, name:'First Name',                 sub:'Verify attribute vs GreenLake profile',      icon:'🪪'},
+  {id:'lastname',    n:8, name:'Last Name',                  sub:'Verify attribute vs GreenLake profile',      icon:'🪪'},
+  {id:'hpe_ccs',     n:9, name:'hpe_ccs_attribute',          sub:'Role & scope mapping — coming soon',         icon:'🔧'},
+];
+let S = {file:null,checks:[],status:{},manual:{},cur:-1,started:false,open:new Set()};
+function api(){ return (document.getElementById('apiUrl').value||'http://localhost:5050').replace(/\/$/,''); }
+function init(){
+  STEPS.forEach(s=>{ S.status[s.id]='pending'; });
+  renderSidebar();
+  setupDrop();
+  document.getElementById('fileInput').addEventListener('change', e=>{
+    if(e.target.files[0]) pickFile(e.target.files[0]);
+  });
+  document.getElementById('apiUrl').addEventListener('change', ping);
+  ping();
+}
+async function ping(){
+  const dot=document.getElementById('apiDot');
+  dot.className='api-dot busy';
+  try{
+    const r=await fetch(api()+'/api/health',{signal:AbortSignal.timeout(3000)});
+    dot.className=r.ok?'api-dot ok':'api-dot err';
+  }catch{ dot.className='api-dot err'; }
+}
+function setupDrop(){
+  const z=document.getElementById('dropzone');
+  z.addEventListener('dragover',e=>{e.preventDefault();z.classList.add('over');});
+  z.addEventListener('dragleave',()=>z.classList.remove('over'));
+  z.addEventListener('drop',e=>{
+    e.preventDefault();z.classList.remove('over');
+    if(e.dataTransfer.files[0]) pickFile(e.dataTransfer.files[0]);
+  });
+}
+function pickFile(f){
+  S.file=f;
+  document.getElementById('dropTitle').textContent=`✓  ${f.name}`;
+  document.getElementById('dropSub').textContent=`${(f.size/1024).toFixed(1)} KB — click to change`;
+  document.getElementById('runBtn').classList.add('show');
+  setPill('FILE LOADED','running');
+}
+async function runChecks(){
+  if(!S.file) return;
+  document.getElementById('runBtn').classList.remove('show');
+  document.getElementById('rstBtn').classList.add('show');
+  document.getElementById('emptyState').style.display='none';
+  document.getElementById('cardsContainer').style.display='block';
+  setPill('PARSING…','running');
+  showOverlay(true);
+  try{
+    const fd=new FormData();
+    fd.append('file',S.file);
+    const resp=await fetch(api()+'/api/parse',{method:'POST',body:fd});
+    const data=await resp.json();
+    if(!resp.ok||!data.success) throw new Error(data.error||`HTTP ${resp.status}`);
+    S.checks=data.checks;
+    S.status={}; S.manual={}; S.open=new Set(); S.cur=0; S.started=true;
+    STEPS.forEach(s=>{ S.status[s.id]='pending'; });
+    showOverlay(false);
+    renderAllCards();
+    runStep(0);
+  }catch(e){
+    showOverlay(false);
+    document.getElementById('cardsContainer').innerHTML=`
+      <div class="msg fail" style="margin-top:10px">
+        <span class="msg-ico">❌</span>
+        <div class="msg-txt">
+          <strong>Error: ${esc(e.message)}</strong><br><br>
+          • Make sure Flask is running: <code style="color:var(--teal)">python app.py</code><br>
+          • Check the Backend URL in the header matches your Flask port<br>
+          • Verify your file is a valid SAML HAR, XML, or JSON
+        </div>
+      </div>`;
+    setPill('ERROR','done-fail');
+  }
+}
+function runStep(idx){
+  if(idx>=STEPS.length){ showSummary(); return; }
+  S.cur=idx;
+  const step=STEPS[idx];
+  const data=S.checks.find(c=>c.id===step.id);
+  if(!data||data.type==='skipped'){
+    S.status[step.id]='skipped';
+    renderSidebar(); refreshCard(step.id);
+    setTimeout(()=>runStep(idx+1),250);
+    return;
+  }
+  S.status[step.id]='running';
+  renderSidebar(); refreshCard(step.id);
+  setTimeout(()=>{
+    if(data.type==='auto'){
+      S.status[step.id]=data.status;
+    } else {
+      S.status[step.id]='manual';
+    }
+    renderSidebar(); refreshCard(step.id);
+    openCard(step.id); scrollTo(step.id);
+    updateStats();
+    setPill('RUNNING','running');
+    if(data.type==='auto' && data.status==='pass'){
+      setTimeout(()=>advance(),3000);
+    }
+  },380);
+}
+function advance(){
+  const ni=S.cur+1;
+  if(ni>=STEPS.length){ showSummary(); return; }
+  closeCard(STEPS[S.cur].id);
+  runStep(ni);
+}
+function manualDone(id, decision){
+  S.manual[id]=decision;
+  S.status[id]=decision;
+  renderSidebar(); refreshCard(id); updateStats();
+  setTimeout(()=>advance(),350);
+}
+function renderSidebar(){
+  const icons={pending:'·',running:'◌',pass:'✓',fail:'✗',warn:'!',manual:'?',skipped:'—'};
+  document.getElementById('stepList').innerHTML=STEPS.map((s,i)=>{
+    const st=S.status[s.id]||'pending';
+    const cur=(i===S.cur&&S.started)?' cur':'';
+    return `<div class="step-row s-${st}${cur}" onclick="toggleCard('${s.id}')">
+      <div class="step-num">${icons[st]||(i+1)}</div>
+      <div class="step-info">
+        <div class="step-name">${s.name}</div>
+        <div class="step-sub">${s.sub}</div>
+      </div>
+      <span class="step-badge sb-${st}">${st}</span>
+    </div>`;
+  }).join('');
+  const done=Object.values(S.status).filter(s=>!['pending','running'].includes(s)).length;
+  document.getElementById('sideProgress').textContent=`${done} / ${STEPS.length}`;
+}
+function renderAllCards(){
+  document.getElementById('cardsContainer').innerHTML=STEPS.map(s=>buildCard(s)).join('');
+}
+function buildCard(step){
+  const st=S.status[step.id]||'pending';
+  const isOpen=S.open.has(step.id);
+  const isCur=S.cur===STEPS.indexOf(step)&&S.started;
+  const curCls=isCur?' cur-card':'';
+  const siIco={pending:'○',running:'<span style="display:inline-block;animation:spin .8s linear infinite">⟳</span>',
+    pass:'✅',fail:'❌',warn:'⚠️',manual:'⚠️',skipped:'⏭'};
+  const bcls={pending:'cba-pending',running:'cba-running',pass:'cba-pass',fail:'cba-fail',
+    warn:'cba-warn',manual:'cba-manual',skipped:'cba-skipped'};
+  const blbl={pending:'PENDING',running:'CHECKING…',pass:'PASS',fail:'FAIL',
+    warn:'REVIEW',manual:'MANUAL',skipped:'SKIPPED'};
+  return `<div class="card s-${st}${curCls}" id="card-${step.id}">
+    <div class="card-hdr" onclick="toggleCard('${step.id}')">
+      <div class="card-ico">${step.icon}</div>
+      <div class="card-ttl">
+        <div class="card-name">Check ${step.n} — ${step.name}</div>
+        <div class="card-sub">${step.sub}</div>
+      </div>
+      <div class="card-right">
+        <span style="font-size:18px">${siIco[st]||'○'}</span>
+        <span class="card-badge ${bcls[st]||'cba-pending'}">${blbl[st]||'PENDING'}</span>
+      </div>
+    </div>
+    <div class="card-body${isOpen?' open':''}" id="body-${step.id}">
+      ${buildBody(step)}
+    </div>
+  </div>`;
+}
+function buildBody(step){
+  const data=S.checks.find(c=>c.id===step.id);
+  const st=S.status[step.id]||'pending';
+  if(!data||st==='pending') return `<p style="color:var(--text3);font-family:var(--mono);font-size:12px">Waiting to run…</p>`;
+  if(st==='running') return `<div class="msg info"><span class="msg-ico" style="animation:spin .8s linear infinite;display:inline-block">⟳</span><div class="msg-txt">Running validation…</div></div>`;
+  let h='';
+  const isCur=STEPS.findIndex(s=>s.id===step.id)===S.cur&&S.started;
+  if(step.id==='idp'){
+    h+=`<div class="idp-badge">
+      <div class="idp-ico">${esc(data.idp_icon||'🏛')}</div>
+      <div>
+        <div class="idp-name">${esc(data.found)}</div>
+        <div class="idp-sub">Issuer: ${esc(data.issuer||'(not found)')}</div>
+      </div>
+    </div>`;
+    h+=msgBox(st, data.note);
+  }
+  else if(step.id==='entity_id'){
+    h+=msgBox(st,data.note);
+    h+=`<div class="cmp">
+      <div class="cmp-box"><div class="cmp-lbl">Found in SAML</div>
+        <div class="cmp-val ${st==='pass'?'ok':'bad'}">${esc(data.found)}</div></div>
+      <div class="cmp-box"><div class="cmp-lbl">Required Value</div>
+        <div class="cmp-val ok">${esc(data.expected||'')}</div></div>
+    </div>`;
+    if(st==='fail'&&data.fix) h+=fixBox(data.fix);
+  }
+  else if(step.id==='acs_url'){
+    h+=msgBox(st,data.note);
+    h+=`<div class="cmp">
+      <div class="cmp-box"><div class="cmp-lbl">Found in SAML</div>
+        <div class="cmp-val ${st==='pass'?'ok':'bad'}">${esc(data.found)}</div></div>
+      <div class="cmp-box"><div class="cmp-lbl">Required Value</div>
+        <div class="cmp-val ok">${esc(data.expected||'')}</div></div>
+    </div>`;
+    if(st==='fail'&&data.fix) h+=fixBox(data.fix);
+  }
+  else if(step.id==='time_window'){
+    h+=msgBox(st,data.note);
+    if(data.not_before||data.not_on_or_after){
+      const dm=data.diff_minutes;
+      const col=dm!=null&&dm<=74?'var(--lime)':'var(--rose)';
+      h+=`<div class="time-bar">
+        <div class="cmp-lbl" style="margin-bottom:10px">Assertion Conditions</div>
+        <div class="time-row">
+          <span class="t-chip">NotBefore</span>
+          <span>${esc(data.not_before||'—')}</span>
+          <span class="t-arrow">→</span>
+          <span class="t-chip">NotOnOrAfter</span>
+          <span>${esc(data.not_on_or_after||'—')}</span>
+          ${dm!=null?`<span class="t-diff" style="background:${dm<=74?'var(--lime-bg)':'var(--rose-bg)'};color:${col};border:1px solid ${dm<=74?'var(--lime-rim)':'var(--rose-rim)'}">${dm} min</span>`:''}
+        </div>
+        <div style="margin-top:10px;font-family:var(--mono);font-size:11px;color:var(--text3)">
+          Limit: ≤ 74 min &nbsp;|&nbsp; ${dm!=null?(dm<=74?`✅ ${74-dm} min under limit`:`❌ ${dm-74} min over limit`):'—'}
+        </div>
+      </div>`;
+    }
+    if(st==='fail'&&data.fix) h+=fixBox(data.fix);
+  }
+  else if(step.id==='certificate'){
+    h+=msgBox(st,data.note);
+    if(data.certs&&data.certs.length>0){
+      const c=data.certs[0];
+      if(c.masked){
+        h+=`<div class="msg warn"><span class="msg-ico">🔒</span>
+          <div class="msg-txt"><strong>Certificate is masked in this export.</strong><br>
+          Verify the certificate manually in your IdP admin portal.<br>
+          Check that it is not expired and matches what is configured in HPE GreenLake.</div></div>`;
+      } else {
+        const dr=c.days_remaining;
+        const dCol=c.expired?'bad':dr<30?'warn':'ok';
+        const chipStyle=c.expired
+          ?'background:var(--rose-bg);color:var(--rose);border:1px solid var(--rose-rim)'
+          :dr<30
+            ?'background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-rim)'
+            :'background:var(--lime-bg);color:var(--lime);border:1px solid var(--lime-rim)';
+        h+=`<div class="cert-grid">
+          <div class="cert-f"><div class="cf-l">Certificate Type</div><div class="cf-v ok">X.509 (DER/PEM)</div></div>
+          <div class="cert-f"><div class="cf-l">Algorithm</div><div class="cf-v hi">${esc(c.algorithm||'—')}</div></div>
+          <div class="cert-f"><div class="cf-l">Valid From</div><div class="cf-v">${esc(c.not_before||'—')}</div></div>
+          <div class="cert-f"><div class="cf-l">Expiry Date</div>
+            <div class="cf-v ${dCol}">${esc(c.not_after||'—')}
+              <span class="days-chip" style="${chipStyle}">${c.expired?'EXPIRED':(dr<30?`⚠ ${dr}d left`:`${dr} days`)}</span>
+            </div>
+          </div>
+          <div class="cert-f" style="grid-column:1/-1"><div class="cf-l">Subject</div><div class="cf-v" style="font-size:10px">${esc(c.subject||'—')}</div></div>
+          <div class="cert-f" style="grid-column:1/-1"><div class="cf-l">Issuer</div><div class="cf-v" style="font-size:10px">${esc(c.issuer||'—')}</div></div>
+          <div class="cert-f"><div class="cf-l">Serial</div><div class="cf-v" style="font-size:10px">${esc((c.serial||'—').substring(0,32))}…</div></div>
+          <div class="cert-f"><div class="cf-l">Status</div>
+            <div class="cf-v ${c.valid?'ok':'bad'}">${c.valid?'✅ Valid':'❌ '+(c.expired?'EXPIRED':'Invalid')}</div>
+          </div>
+        </div>`;
+        if(c.error) h+=`<div class="msg warn" style="margin-top:10px"><span class="msg-ico">⚠️</span><div class="msg-txt">${esc(c.error)}</div></div>`;
+      }
+    } else {
+      h+=`<div class="msg warn"><span class="msg-ico">⚠️</span><div class="msg-txt">No X.509 certificate found in the SAML response. Ensure your IdP signs the assertion.</div></div>`;
+    }
+    if(st==='fail'&&data.fix) h+=fixBox(data.fix);
+  }
+  else if(['nameid','firstname','lastname'].includes(step.id)){
+    const ov = S.manual[step.id];
+    const isNotFound    = !data.found    || data.found    === '(not found)';
+    const isFromSecondary = data.attr_source === 'secondary';
+    const isSchema      = data.attr_name && data.attr_name.includes('://');
+
+    // ── State A: already manually resolved ───────────────────────────────────
+    if(ov){
+      h+=`<div class="override-banner">
+        <span style="font-size:16px">${ov==='pass'?'✅':'❌'}</span>
+        <span>${ov==='pass'?'Manually verified — values match.':'Manually marked as mismatch. Update the attribute mapping in your IdP.'}</span>
+      </div>`;
+      h+=`<div class="cmp-box" style="margin-bottom:8px">
+        <div class="cmp-lbl">Attribute Name</div>
+        <div class="cmp-val hi" style="font-size:11px">${esc(data.attr_name||'—')}</div>
+      </div>
+      <div class="cmp-box">
+        <div class="cmp-lbl">Attribute Value</div>
+        <div class="cmp-val ${ov==='pass'?'ok':'bad'}">${esc(data.found)}</div>
+      </div>`;
+
+    // ── State B: not found in IdP SAML attributes at all ─────────────────────
+    } else if(isNotFound){
+      h+=`<div class="manual">
+        <div class="manual-ttl" style="color:var(--rose)">❌ Attribute Not Configured in IdP</div>
+        <div class="manual-inst">
+          The <strong>${esc(step.name)}</strong> attribute was <strong style="color:var(--rose)">not found</strong>
+          in the SAML assertion sent by your IdP.<br><br>
+          This means your IdP is <strong>not passing this attribute</strong> in the SAML response.
+          You need to add or configure the attribute mapping in your IdP before SSO will work correctly.
+        </div>
+        <div style="padding:14px 16px;background:var(--rose-bg);border:1px solid var(--rose-rim);border-radius:9px;font-family:var(--mono);font-size:11px;color:var(--rose);line-height:1.9">
+          <strong style="color:var(--text);display:block;margin-bottom:6px">💡 How to fix:</strong>
+          In your IdP SAML app configuration, add an <strong style="color:var(--text)">Attribute Statement</strong>
+          mapping for <strong style="color:var(--text)">${esc(step.name)}</strong>.<br>
+          Map it to the corresponding user profile field (e.g. <code style="color:var(--teal)">${esc(step.name==='NameID'?'email / userPrincipalName':step.name==='First Name'?'firstName / givenName':'lastName / surname')}</code>)
+          and re-export the SAML trace to verify.
+        </div>
+        <div class="manual-actions" style="margin-top:14px">
+          <button class="btn-bad" onclick="manualDone('${step.id}','fail')">✗ Confirmed Missing — Will Fix in IdP</button>
+        </div>
+      </div>`;
+
+    // ── State C: found but from secondary HPE internal SAML, not from IdP ────
+    } else if(isFromSecondary){
+      h+=`<div class="manual">
+        <div class="manual-ttl" style="color:var(--amber)">⚠️ Attribute Not Found in IdP — Sourced from HPE Internal</div>
+        <div class="manual-inst">
+          The <strong>${esc(step.name)}</strong> attribute was <strong style="color:var(--amber)">not present</strong>
+          in the SAML assertion from your IdP (<code style="color:var(--teal)">${esc(data.attr_name||'—')}</code>).<br><br>
+          The value below was retrieved from the <strong>HPE internal relay</strong>, not directly from your IdP.
+          This means your IdP is <strong>not passing this attribute</strong> — you must add it in your IdP configuration.
+        </div>
+        <div class="manual-found">
+          <small>Attribute Name</small>
+          <span style="font-size:11px;color:var(--amber);word-break:break-all">${esc(data.attr_name||'—')}</span>
+          <span style="margin-left:8px;font-size:9px;background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-rim);border-radius:4px;padding:2px 7px;font-family:var(--mono)">⚠ from HPE internal relay — not from your IdP</span>
+        </div>
+        <div class="manual-found" style="margin-top:8px">
+          <small>Value (from HPE internal — for reference only)</small>
+          <span style="color:var(--amber)">${esc(data.found)}</span>
+        </div>
+        <div style="margin-top:10px;padding:14px 16px;background:var(--amber-bg);border:1px solid var(--amber-rim);border-radius:9px;font-family:var(--mono);font-size:11px;color:var(--amber);line-height:1.9">
+          <strong style="color:var(--text);display:block;margin-bottom:6px">💡 How to fix:</strong>
+          In your IdP SAML app, add an <strong style="color:var(--text)">Attribute Statement</strong> mapping for
+          <strong style="color:var(--text)">${esc(step.name)}</strong> and map it to
+          <code style="color:var(--teal)">${esc(step.name==='NameID'?'email / userPrincipalName':step.name==='First Name'?'firstName / givenName':'lastName / surname')}</code>.
+          Re-export the SAML trace — the attribute should then appear directly from your IdP.
+        </div>
+        <div class="manual-actions" style="margin-top:14px">
+          <button class="btn-bad" onclick="manualDone('${step.id}','fail')">✗ Not in IdP — Will Add Attribute Mapping</button>
+        </div>
+      </div>`;
+
+    // ── State D: found directly in IdP SAML attributes — normal verify ────────
+    } else {
+      h+=`<div class="manual">
+        <div class="manual-ttl">⚠️ Manual Verification Required</div>
+        <div class="manual-inst">${data.instruction||''}<br><br>
+          <strong style="color:var(--text)">If they match</strong> → click <em>Values Match</em> to pass this step.<br>
+          <strong style="color:var(--text)">If they differ</strong> → click <em>Mismatch</em>, then update the attribute mapping in your IdP and re-test.
+        </div>
+        <div class="manual-found">
+          <small>Attribute Name in SAML</small>
+          <span style="font-size:11px;color:var(--text2);word-break:break-all">${esc(data.attr_name||'—')}</span>
+          ${isSchema?`<span style="margin-left:6px;font-size:9px;background:var(--sky-bg);color:var(--sky);border:1px solid var(--sky-rim);border-radius:4px;padding:2px 7px;font-family:var(--mono)">schema URL</span>`:''}
+        </div>
+        <div class="manual-found" style="margin-top:8px">
+          <small>Attribute Value</small>
+          ${esc(data.found)}
+        </div>
+        <div class="manual-actions">
+          <button class="btn-ok"  onclick="manualDone('${step.id}','pass')">✓ Values Match — Verified</button>
+          <button class="btn-bad" onclick="manualDone('${step.id}','fail')">✗ Mismatch — Update IdP</button>
+        </div>
+      </div>`;
+    }
+  }
+  else if(step.id==='hpe_ccs'){
+    h+=`<div class="msg info"><span class="msg-ico">ℹ️</span><div class="msg-txt">${esc(data.note||'Skipped.')}</div></div>`;
+    if(data.found&&data.found!=='(not found)'){
+      h+=`<div class="cmp-box" style="margin-top:10px">
+        <div class="cmp-lbl">Raw Value (reference only)</div>
+        <div class="cmp-val hi" style="font-size:10px;white-space:pre-wrap">${esc(data.found)}</div>
+      </div>`;
+    } else if(data.not_found_reason){
+      h+=`<div style="margin-top:10px;padding:10px 12px;background:var(--rose-bg);border:1px solid var(--rose-rim);border-radius:7px;font-family:var(--mono);font-size:10px;color:var(--rose);line-height:1.7">
+        <strong style="color:var(--text)">⚠ hpe_ccs_attribute not found:</strong> ${esc(data.not_found_reason)}
+      </div>`;
+    }
+  }
+  if(isCur){
+    const d=S.checks.find(c=>c.id===step.id);
+    const showNext = d && d.type==='auto' && (st==='fail'||st==='warn');
+    if(showNext){
+      const ni=S.cur+1;
+      const lbl=ni<STEPS.length?`Continue → ${STEPS[ni].name}`:'View Summary →';
+      h+=`<div class="nxt"><button class="btn-nxt" onclick="advance()">→ ${esc(lbl)}</button></div>`;
+    }
+  }
+  return h;
+}
+function msgBox(st,txt){
+  if(!txt) return '';
+  const m={pass:'pass',fail:'fail',warn:'warn',manual:'warn',skipped:'info'};
+  const i={pass:'✅',fail:'❌',warn:'⚠️',skipped:'ℹ️'};
+  return `<div class="msg ${m[st]||'info'}"><span class="msg-ico">${i[st]||'ℹ️'}</span>
+    <div class="msg-txt">${esc(txt)}</div></div>`;
+}
+function fixBox(txt){
+  return `<div class="fix">💡 <strong>How to fix:</strong> ${esc(txt)}</div>`;
+}
+function refreshCard(id){
+  const el=document.getElementById(`card-${id}`);
+  if(!el) return;
+  const step=STEPS.find(s=>s.id===id);
+  const tmp=document.createElement('div');
+  tmp.innerHTML=buildCard(step);
+  const nc=tmp.firstElementChild;
+  el.className=nc.className;
+  el.querySelector('.card-hdr').innerHTML=nc.querySelector('.card-hdr').innerHTML;
+  if(S.open.has(id)){
+    const b=el.querySelector('.card-body');
+    b.innerHTML=nc.querySelector('.card-body').innerHTML;
+    b.classList.add('open');
+  }
+}
+function openCard(id){
+  S.open.add(id);
+  const b=document.getElementById(`body-${id}`);
+  if(b){ b.innerHTML=buildBody(STEPS.find(s=>s.id===id)); b.classList.add('open'); }
+}
+function closeCard(id){
+  S.open.delete(id);
+  const b=document.getElementById(`body-${id}`);
+  if(b) b.classList.remove('open');
+}
+function toggleCard(id){ S.open.has(id)?closeCard(id):openCard(id); }
+function scrollTo(id){
+  const el=document.getElementById(`card-${id}`);
+  if(el) el.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function updateStats(){
+  const v=Object.values(S.status);
+  document.getElementById('sPass').textContent=v.filter(s=>s==='pass').length;
+  document.getElementById('sFail').textContent=v.filter(s=>['fail','warn'].includes(s)).length;
+  document.getElementById('sPend').textContent=v.filter(s=>['pending','manual'].includes(s)).length;
+}
+function setPill(txt,cls){
+  const p=document.getElementById('overallPill');
+  p.textContent=txt; p.className=`pill ${cls}`;
+}
+function showOverlay(show){
+  document.getElementById('parseOv').className='parse-ov'+(show?' show':'');
+}
+function showSummary(){
+  const v=Object.values(S.status);
+  const pass=v.filter(s=>s==='pass').length;
+  const fail=v.filter(s=>['fail','warn'].includes(s)).length;
+  const skipped=v.filter(s=>s==='skipped').length;
+  const ok=fail===0;
+  setPill(ok?'ALL PASS':`${fail} FAILED`, ok?'done-ok':'done-fail');
+  updateStats(); renderSidebar();
+  const prev=document.getElementById('summaryBanner');
+  if(prev) prev.remove();
+  const b=document.createElement('div');
+  b.id='summaryBanner';
+  b.className=`summary ${ok?'ok':'bad'}`;
+  b.innerHTML=`
+    <div class="sum-ico">${ok?'✅':'⚠️'}</div>
+    <div class="sum-title">${ok?'All checks passed!': `${fail} check${fail>1?'s':''} need attention`}</div>
+    <div class="sum-sub">${ok
+      ?'Your SAML configuration looks correct for HPE GreenLake SSO. If SSO is still failing, check clock skew between IdP and SP, and verify the IdP certificate is uploaded in GreenLake.'
+      :'Review the failed checks above. Each failed step shows the correct expected value and instructions to fix it in your IdP configuration.'
+    }</div>
+    <div class="sum-counts">
+      <div class="sc"><div class="sc-val" style="color:var(--lime)">${pass}</div><div class="sc-lbl">Pass</div></div>
+      <div class="sc"><div class="sc-val" style="color:var(--rose)">${fail}</div><div class="sc-lbl">Fail</div></div>
+      <div class="sc"><div class="sc-val" style="color:var(--text3)">${skipped}</div><div class="sc-lbl">Skipped</div></div>
+    </div>`;
+  document.getElementById('cardsContainer').appendChild(b);
+  b.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function resetAll(){
+  S={file:null,checks:[],status:{},manual:{},cur:-1,started:false,open:new Set()};
+  STEPS.forEach(s=>{ S.status[s.id]='pending'; });
+  document.getElementById('dropTitle').textContent='Drop SAML file here — HAR, XML, JSON';
+  document.getElementById('dropSub').textContent='Supports .har .xml .json .txt .log — or click to browse';
+  document.getElementById('runBtn').classList.remove('show');
+  document.getElementById('rstBtn').classList.remove('show');
+  document.getElementById('emptyState').style.display='flex';
+  document.getElementById('cardsContainer').style.display='none';
+  document.getElementById('cardsContainer').innerHTML='';
+  document.getElementById('fileInput').value='';
+  setPill('READY','ready');
+  renderSidebar(); updateStats();
+}
+function esc(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+init();
+</script>
+</body>
+</html>

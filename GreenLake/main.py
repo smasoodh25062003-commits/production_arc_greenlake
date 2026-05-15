@@ -1,42 +1,26 @@
-from flask import Flask, send_from_directory
-from flask_cors import CORS
+"""
+GreenLake Platform Tools (Flask) + embedded Rohit / GreenLake Dashboard (FastAPI).
+
+- WSGI entry `app` is the Flask tools app only (for legacy `gunicorn main:app` if needed).
+- Full stack (single port): run `python main.py` or `uvicorn combined_asgi:application --host 0.0.0.0 --port 5000`.
+- **SSO Tools** (Okta role strings + SAML metadata): mounted at `/sso-tools/` on the same server (see `sso_tools/`).
+"""
 import os
 
-from deviceApp import device_bp
-from subscriptionApp import subscription_bp
-from userbaseApp import userbase_bp
+from greenlake_flask_app import build_flask_app
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-app = Flask(__name__, static_folder=BASE_DIR, static_url_path='')
-CORS(app)
-
-# ─── Register blueprints ──────────────────────────────────────────────────────
-app.register_blueprint(device_bp)
-app.register_blueprint(subscription_bp)
-app.register_blueprint(userbase_bp)
-
-# ─── Serve frontend pages ─────────────────────────────────────────────────────
-@app.route('/')
-def home():
-    return send_from_directory(BASE_DIR, 'GreenLakeTools.html')
-
-@app.route('/GreenLakeTools.html')
-def greenlake_tools():
-    return send_from_directory(BASE_DIR, 'GreenLakeTools.html')
-
-@app.route('/DeviceManagement.html')
-def device_management():
-    return send_from_directory(BASE_DIR, 'DeviceManagement.html')
-
-@app.route('/Subscriptionmanagement.html')
-def subscription_management():
-    return send_from_directory(BASE_DIR, 'Subscriptionmanagement.html')
-
-@app.route('/UserManagement.html')
-def user_management():
-    return send_from_directory(BASE_DIR, 'UserManagement.html')
+# Flask-only WSGI app (dashboard is not mounted here)
+app = build_flask_app()
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    import uvicorn
+
+    port = int(os.environ.get("PORT", "5000"))
+    host = os.environ.get("HOST", "127.0.0.1")
+    uvicorn.run(
+        "combined_asgi:application",
+        host=host,
+        port=port,
+        reload=os.environ.get("UVICORN_RELOAD", "1") == "1",
+    )
