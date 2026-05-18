@@ -9,7 +9,7 @@
 
   const STORAGE_KEYS = {
     history: "okta-role-string-history-with-groups-v2",
-    theme: "okta-role-string-theme",
+    theme: "greenlake-theme",
   };
 
   const MAX_HISTORY = 20;
@@ -220,13 +220,19 @@
   }
 
   function initTheme() {
+    if (window.GreenLakeTheme) {
+      window.GreenLakeTheme.bindToggles();
+      return;
+    }
     let theme = null;
     try { theme = localStorage.getItem(STORAGE_KEYS.theme); } catch (e) {}
     if (!theme) {
-      theme = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light";
+      try {
+        const leg = localStorage.getItem("okta-role-string-theme");
+        if (leg === "light" || leg === "dark") theme = leg;
+      } catch (e) {}
     }
+    if (!theme) theme = "light";
     applyTheme(theme);
   }
 
@@ -261,12 +267,16 @@
     await refreshDiagram();
   }
 
-  themeToggle.addEventListener("click", () => {
-    const current = document.documentElement.getAttribute("data-theme");
-    applyTheme(current === "dark" ? "light" : "dark");
-    if (diagramModal && !diagramModal.hidden && diagramBuildFn) refreshDiagram();
-    refreshLiveDiagram();
-  });
+  if (themeToggle) {
+    themeToggle.addEventListener("click", () => {
+      const next =
+        document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      if (window.GreenLakeTheme) window.GreenLakeTheme.apply(next);
+      else applyTheme(next);
+      if (diagramModal && !diagramModal.hidden && diagramBuildFn) refreshDiagram();
+      refreshLiveDiagram();
+    });
+  }
 
   if (diagramBtn && diagramModal) {
     diagramBtn.addEventListener("click", () => {

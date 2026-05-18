@@ -1,12 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/greenlake-theme.js"></script>
+    <script src="/greenlake-feedback.js" defer></script>
     <script>window.__GL_PREFIX__ = "{{ gl_prefix }}";</script>
     <title>{% block title %}HPE GreenLake — Dashboard{% endblock %}</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/greenlake-theme.css">
     <link rel="stylesheet" href="{{ gl_prefix }}/static/css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
     {% block head %}{% endblock %}
@@ -57,9 +60,15 @@
         <main class="main-content">
             <header class="top-bar">
                 <h2 id="pageTitle">{% block page_title %}Overview{% endblock %}</h2>
-                <div class="user-profile">
-                    <div class="status-indicator {{ 'on' if configured else 'off' }}"></div>
-                    <span>{{ 'Connected' if configured else 'Not Configured' }}</span>
+                <div class="top-bar-actions" style="display:flex;align-items:center;gap:12px;">
+                    <button type="button" id="themeToggle" class="gl-theme-toggle" aria-label="Toggle theme" title="Toggle light/dark mode">
+                        <span class="theme-icon theme-icon-light" aria-hidden="true">&#9728;</span>
+                        <span class="theme-icon theme-icon-dark" aria-hidden="true">&#9790;</span>
+                    </button>
+                    <div class="user-profile">
+                        <div class="status-indicator {{ 'on' if configured else 'off' }}"></div>
+                        <span>{{ 'Connected' if configured else 'Not Configured' }}</span>
+                    </div>
                 </div>
             </header>
 
@@ -153,6 +162,8 @@
             font-family: inherit;
         }
     </style>
+    <link rel="stylesheet" href="{{ gl_prefix }}/static/css/dashboard-dark.css">
+
 
     <script src="{{ gl_prefix }}/static/js/app.js"></script>
     <script>

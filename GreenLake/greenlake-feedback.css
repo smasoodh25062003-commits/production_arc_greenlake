@@ -1,0 +1,130 @@
+.gl-feedback-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9000;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #01a982, #0d7ac7);
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(1, 169, 130, 0.35);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.gl-feedback-fab:hover {
+  transform: scale(1.06);
+  box-shadow: 0 6px 24px rgba(1, 169, 130, 0.45);
+}
+
+.gl-feedback-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9001;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+}
+.gl-feedback-backdrop.open {
+  display: block;
+}
+
+.gl-feedback-modal {
+  display: none;
+  position: fixed;
+  z-index: 9002;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(440px, calc(100vw - 32px));
+  max-height: 90vh;
+  overflow: auto;
+}
+.gl-feedback-modal.open {
+  display: block;
+}
+
+.gl-feedback-modal-inner {
+  background: var(--panel, #fff);
+  color: var(--text, #2c2c2c);
+  border: 1px solid var(--border, #ddd);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  position: relative;
+}
+html[data-theme="dark"] .gl-feedback-modal-inner {
+  background: #1a1a22;
+  color: #e8e8ec;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.gl-feedback-modal h3 {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+}
+.gl-feedback-hint {
+  font-size: 0.82rem;
+  opacity: 0.65;
+  margin: 0 0 16px;
+}
+.gl-feedback-modal label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+.gl-feedback-modal select,
+.gl-feedback-modal textarea {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border, #ccc);
+  font-family: inherit;
+  font-size: 0.9rem;
+  background: var(--surface, #f7f7f7);
+  color: inherit;
+}
+.gl-feedback-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  border: none;
+  background: none;
+  font-size: 1.4rem;
+  cursor: pointer;
+  opacity: 0.5;
+  color: inherit;
+}
+.gl-feedback-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+.gl-feedback-cancel,
+.gl-feedback-submit {
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border, #ddd);
+  background: transparent;
+  color: inherit;
+}
+.gl-feedback-submit {
+  background: #01a982;
+  border-color: #01a982;
+  color: #fff;
+}
+.gl-feedback-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

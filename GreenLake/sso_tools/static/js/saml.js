@@ -1,7 +1,8 @@
 (function () {
   "use strict";
 
-  const THEME_KEY = "okta-role-string-theme";
+  const THEME_KEY = "greenlake-theme";
+  const LEGACY_THEME_KEY = "okta-role-string-theme";
 
   const SECTIONS = [
     { id: "identity", title: "Identity & SSO", ids: ["idp", "entity_id", "acs_url"] },
@@ -52,9 +53,19 @@
   }
 
   function initTheme() {
+    if (window.GreenLakeTheme) {
+      window.GreenLakeTheme.bindToggles();
+      return;
+    }
     let t = null;
     try { t = localStorage.getItem(THEME_KEY); } catch (e) {}
-    if (!t) t = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    if (!t) {
+      try {
+        const leg = localStorage.getItem(LEGACY_THEME_KEY);
+        if (leg === "light" || leg === "dark") t = leg;
+      } catch (e) {}
+    }
+    if (!t) t = "light";
     applyTheme(t);
   }
 
@@ -638,8 +649,10 @@
     initTheme();
     if (els.themeToggle) {
       els.themeToggle.addEventListener("click", () => {
-        const cur = document.documentElement.getAttribute("data-theme");
-        applyTheme(cur === "dark" ? "light" : "dark");
+        const next =
+          document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+        if (window.GreenLakeTheme) window.GreenLakeTheme.apply(next);
+        else applyTheme(next);
       });
     }
     setupDrop();

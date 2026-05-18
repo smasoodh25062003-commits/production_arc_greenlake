@@ -1,7 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 
 <head>
+    <script src="/greenlake-theme.js"></script>
+    <link rel="stylesheet" href="/greenlake-theme.css">
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script>window.__GL_PREFIX__ = "{{ gl_prefix }}";</script>
@@ -10,15 +13,15 @@
     <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
     <style>
         :root {
-            --ccs-bg: #09090b;
-            --ccs-surface: rgba(24, 24, 27, 0.65);
-            --ccs-surface-hover: rgba(39, 39, 42, 0.8);
-            --ccs-border: rgba(255, 255, 255, 0.08);
+            --ccs-bg: #f7f7f7;
+            --ccs-surface: rgba(255, 255, 255, 0.95);
+            --ccs-surface-hover: #fafbfb;
+            --ccs-border: #d5d5d5;
             --ccs-primary: #01a982;
-            --ccs-primary-glow: rgba(1, 169, 130, 0.25);
+            --ccs-primary-glow: rgba(1, 169, 130, 0.2);
             --ccs-accent: #0d7ac7;
-            --ccs-text: #fafafa;
-            --ccs-text-muted: #a1a1aa;
+            --ccs-text: #2c2c2c;
+            --ccs-text-muted: #555555;
             --ccs-danger: #ef4444;
         }
 
@@ -47,7 +50,7 @@
             align-items: center;
             justify-content: space-between;
             padding: 0 40px;
-            background: rgba(9, 9, 11, 0.7);
+            background: rgba(255, 255, 255, 0.92);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             border-bottom: 1px solid var(--ccs-border);
@@ -90,10 +93,11 @@
             font-size: 1.4rem;
             font-weight: 700;
             margin: 0;
-            color: #fff;
             letter-spacing: 0.5px;
-            background: linear-gradient(to right, #fff, #a1a1aa);
+            color: var(--ccs-text);
+            background: linear-gradient(to right, #1a1f1c, #4a5852);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
@@ -117,9 +121,9 @@
         }
 
         .ccs-nav-item:hover {
-            color: #fff;
-            background: rgba(255, 255, 255, 0.04);
-            border-color: rgba(255, 255, 255, 0.08);
+            color: var(--ccs-text);
+            background: var(--ccs-surface-hover);
+            border-color: var(--ccs-border);
         }
 
         .ccs-nav-item.active {
@@ -166,7 +170,7 @@
 
         .ccs-sidebar {
             width: 260px;
-            background: rgba(9, 9, 11, 0.5);
+            background: var(--ccs-surface);
             border-right: 1px solid var(--ccs-border);
             padding: 32px 20px;
             flex-shrink: 0;
@@ -200,9 +204,9 @@
         }
 
         .ccs-side-item:hover {
-            color: #fff;
-            background: rgba(255, 255, 255, 0.04);
-            border-color: rgba(255, 255, 255, 0.08);
+            color: var(--ccs-text);
+            background: var(--ccs-surface-hover);
+            border-color: var(--ccs-border);
         }
 
         .ccs-side-item.active {
@@ -230,6 +234,60 @@
             animation: fadeIn 0.4s ease-out forwards;
         }
 
+        /* Global API progress bar */
+        .ccs-global-progress {
+            position: sticky;
+            top: 70px;
+            z-index: 99;
+            background: var(--ccs-surface, #fff);
+            border-bottom: 1px solid var(--ccs-border, #d5d5d5);
+            padding: 8px 40px 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+        }
+        .ccs-global-progress[hidden] { display: none !important; }
+        .ccs-global-progress__row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 6px;
+        }
+        .ccs-global-progress__label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--ccs-text-secondary, #2d3833);
+        }
+        .ccs-global-progress__pct {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--ccs-primary, #01a982);
+            font-variant-numeric: tabular-nums;
+            min-width: 2.5rem;
+            text-align: right;
+        }
+        .ccs-global-progress__track {
+            height: 6px;
+            border-radius: 6px;
+            background: var(--ccs-surface-hover, #f0f4f2);
+            border: 1px solid var(--ccs-border, #d5d5d5);
+            overflow: hidden;
+        }
+        .ccs-global-progress__bar {
+            height: 100%;
+            width: 0%;
+            border-radius: 6px;
+            background: linear-gradient(90deg, #01a982, #0d7ac7);
+            transition: width 0.25s ease;
+        }
+        .ccs-global-progress.is-indeterminate .ccs-global-progress__bar {
+            width: 35% !important;
+            animation: ccsGlobalProgressSlide 1.1s ease-in-out infinite;
+        }
+        @keyframes ccsGlobalProgressSlide {
+            0% { transform: translateX(-120%); }
+            100% { transform: translateX(320%); }
+        }
+
     </style>
     {% block head %}{% endblock %}
 </head>
@@ -253,14 +311,17 @@
             </div>
 
             <div style="display:flex; align-items:center; gap:12px;">
+                <button type="button" id="themeToggle" class="gl-theme-toggle" aria-label="Toggle theme" title="Toggle light/dark mode">
+                    <span class="theme-icon theme-icon-light" aria-hidden="true">&#9728;</span>
+                    <span class="theme-icon theme-icon-dark" aria-hidden="true">&#9790;</span>
+                </button>
                 {% if current_user %}
-                <div style="display:flex; align-items:center; gap:8px; background:rgba(255,255,255,0.04); padding:8px 14px; border-radius:20px; border:1px solid rgba(255,255,255,0.08);">
+                <div class="ccs-user-chip" style="display:flex; align-items:center; gap:8px; padding:8px 14px; border-radius:20px; border:1px solid var(--ccs-border);">
                     <div style="width:8px; height:8px; border-radius:50%; background:#10b981; box-shadow:0 0 8px rgba(16,185,129,0.5);"></div>
-                    <span style="font-size:0.85rem; font-weight:500; color:rgba(255,255,255,0.75);">{{ current_user.display_name }}</span>
-                    <span style="font-size:0.72rem; padding:2px 8px; border-radius:10px; font-weight:600;
-                        {% if current_user.role == 'admin' %}background:rgba(245,158,11,0.15); color:#f59e0b;{% elif current_user.role == 'operator' %}background:rgba(59,130,246,0.15); color:#60a5fa;{% else %}background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.5);{% endif %}">{{ current_user.role }}</span>
+                    <span class="ccs-user-name" style="font-size:0.85rem; font-weight:500;">{{ current_user.display_name }}</span>
+                    <span class="ccs-role-badge ccs-role-badge--{{ current_user.role }}" style="font-size:0.72rem; padding:2px 8px; border-radius:10px; font-weight:600;">{{ current_user.role }}</span>
                 </div>
-                <a href="{{ gl_prefix }}/logout" style="display:flex; align-items:center; gap:6px; padding:8px 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); color:rgba(255,255,255,0.45); font-size:0.82rem; text-decoration:none; transition:all 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.45)'">
+                <a href="{{ gl_prefix }}/logout" class="ccs-logout-link" style="display:flex; align-items:center; gap:6px; padding:8px 14px; border-radius:12px; font-size:0.82rem; text-decoration:none; transition:all 0.2s;">
                     <i data-feather="log-out" style="width:14px;height:14px;"></i> Logout
                 </a>
                 {% else %}
@@ -268,6 +329,16 @@
                 {% endif %}
             </div>
         </nav>
+
+        <div id="ccsGlobalProgress" class="ccs-global-progress" hidden aria-hidden="true">
+            <div class="ccs-global-progress__row">
+                <span id="ccsGlobalProgressLabel" class="ccs-global-progress__label">Working…</span>
+                <span id="ccsGlobalProgressPct" class="ccs-global-progress__pct"></span>
+            </div>
+            <div class="ccs-global-progress__track">
+                <div id="ccsGlobalProgressBar" class="ccs-global-progress__bar"></div>
+            </div>
+        </div>
 
         <!-- Main Content Layout -->
         <div class="ccs-layout-container">
@@ -284,8 +355,8 @@
                         <i data-feather="users"></i> Users & Apps
                     </a>
                     {% if current_user and current_user.role == 'admin' %}
-                    <div style="height:1px; background:rgba(255,255,255,0.06); margin:12px 4px;"></div>
-                    <a href="{{ gl_prefix }}/ccs-manager/audit-logs" class="ccs-side-item {% if 'audit-logs' in request.url.path %}active{% endif %}" style="color:rgba(245,158,11,0.75);">
+                    <div class="ccs-sidebar-divider" style="height:1px; background:var(--ccs-border); margin:12px 4px;"></div>
+                    <a href="{{ gl_prefix }}/ccs-manager/audit-logs" class="ccs-side-item ccs-side-audit {% if 'audit-logs' in request.url.path %}active{% endif %}">
                         <i data-feather="activity"></i> Audit Logs
                     </a>
                     {% endif %}
@@ -341,7 +412,7 @@
         }
 
         .ccs-modal-close:hover {
-            color: #fff;
+            color: var(--ccs-text);
         }
 
         .ccs-form-group {
@@ -358,11 +429,11 @@
 
         .ccs-input {
             width: 100%;
-            background: rgba(0, 0, 0, 0.2);
+            background: #ffffff;
             border: 1px solid var(--ccs-border);
             border-radius: 12px;
             padding: 12px 16px;
-            color: #fff;
+            color: var(--ccs-text);
             font-family: 'Inter', sans-serif;
             font-size: 0.95rem;
             box-sizing: border-box;
@@ -402,9 +473,10 @@
             display: flex;
             gap: 8px;
             margin-bottom: 24px;
-            background: rgba(0, 0, 0, 0.2);
+            background: var(--ccs-surface-hover);
             padding: 6px;
             border-radius: 12px;
+            border: 1px solid var(--ccs-border);
         }
 
         .ccs-tab-btn {
@@ -421,10 +493,13 @@
 
         .ccs-tab-btn.active {
             background: var(--ccs-surface);
-            color: #fff;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            color: var(--ccs-text);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
     </style>
+    <link rel="stylesheet" href="{{ gl_prefix }}/static/css/dashboard-dark.css">
+    <link rel="stylesheet" href="{{ gl_prefix }}/static/css/ccs-light.css">
+
 
     <!-- Configuration Modal -->
     <div id="configModal" class="ccs-modal">
@@ -556,6 +631,7 @@
         };
     </script>
     {% block scripts %}{% endblock %}
+    <script src="{{ gl_prefix }}/static/js/ccs-progress.js"></script>
 </body>
 
 </html>

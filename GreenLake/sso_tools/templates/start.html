@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
+  <script src="/greenlake-theme.js"></script>
+
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HPE Role String Generator - Start</title>
@@ -64,23 +66,5 @@
       </a>
     </div>
   </main>
-
-  <script>
-    (function () {
-      const KEY = "okta-role-string-theme";
-      function apply(t) {
-        document.documentElement.setAttribute("data-theme", t);
-        try { localStorage.setItem(KEY, t); } catch (e) {}
-      }
-      let t = null;
-      try { t = localStorage.getItem(KEY); } catch (e) {}
-      if (!t) t = (window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
-      apply(t);
-      const btn = document.getElementById("themeToggle");
-      if (btn) btn.addEventListener("click", () => {
-        apply(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
-      });
-    })();
-  </script>
 </body>
 </html>

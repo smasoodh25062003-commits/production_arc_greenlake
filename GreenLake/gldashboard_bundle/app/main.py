@@ -12,6 +12,7 @@ from app.auth.users import authenticate_user
 from app.auth.session import read_session, set_session, clear_session
 from app.auth.rbac import get_current_user, require_role
 from app.audit.logger import get_recent_logs, get_log_stats
+from app.feedback.logger import get_recent_feedback, get_feedback_stats
 
 _BUNDLE_ROOT = Path(__file__).resolve().parent.parent
 _APP_DIR = _BUNDLE_ROOT / "app"
@@ -43,12 +44,14 @@ from app.api.routers.reports import router as reports_router
 from app.api.routers.bulk import router as bulk_router
 from app.api.routers.auth import router as auth_router
 from app.api.routers.ccs_manager import router as ccs_router
+from app.api.routers.feedback import router as feedback_router
 
 app.include_router(devices_router.router, prefix="/api/devices", tags=["devices"])
 app.include_router(reports_router, prefix="/api/reports", tags=["reports"])
 app.include_router(bulk_router, prefix="/api/bulk", tags=["bulk"])
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 app.include_router(ccs_router, prefix="/api/ccs", tags=["ccs-manager"])
+app.include_router(feedback_router, prefix="/api/feedback", tags=["feedback"])
 from app.api.routers import sites_groups
 
 app.include_router(sites_groups.router, prefix="/api", tags=["sites-groups"])
@@ -63,7 +66,7 @@ async def login_page(request: Request):
     if user:
         return RedirectResponse(url=_url("/"), status_code=302)
     return templates.TemplateResponse(
-        "login.html", _ctx(request, error=None)
+        request, "login.html", _ctx(request, error=None)
     )
 
 
@@ -72,6 +75,7 @@ async def login_submit(request: Request, username: str = Form(...), password: st
     user = authenticate_user(username, password)
     if not user:
         return templates.TemplateResponse(
+            request,
             "login.html",
             _ctx(request, error="Invalid username or password."),
             status_code=401,
@@ -121,7 +125,7 @@ async def read_root(request: Request):
     client = get_glp_client()
     configured = client is not None
     return templates.TemplateResponse(
-        "index.html", _ctx(request, configured=configured)
+        request, "index.html", _ctx(request, configured=configured)
     )
 
 
@@ -193,7 +197,7 @@ async def read_devices(request: Request):
         except Exception as e:
             print(f"Error fetching devices: {e}")
     return templates.TemplateResponse(
-        "devices.html", _ctx(request, configured=configured, devices=devices)
+        request, "devices.html", _ctx(request, configured=configured, devices=devices)
     )
 
 
@@ -204,7 +208,7 @@ async def read_reports(request: Request):
         return RedirectResponse(url=_url("/login"), status_code=302)
     client = get_glp_client()
     return templates.TemplateResponse(
-        "reports.html", _ctx(request, configured=client is not None)
+        request, "reports.html", _ctx(request, configured=client is not None)
     )
 
 
@@ -215,7 +219,7 @@ async def read_bulk(request: Request):
         return RedirectResponse(url=_url("/login"), status_code=302)
     client = get_glp_client()
     return templates.TemplateResponse(
-        "bulk.html", _ctx(request, configured=client is not None)
+        request, "bulk.html", _ctx(request, configured=client is not None)
     )
 
 
@@ -226,7 +230,7 @@ async def read_sites_groups(request: Request):
         return RedirectResponse(url=_url("/login"), status_code=302)
     client = get_glp_client()
     return templates.TemplateResponse(
-        "sites_groups.html", _ctx(request, configured=client is not None)
+        request, "sites_groups.html", _ctx(request, configured=client is not None)
     )
 
 
@@ -246,7 +250,7 @@ async def read_ccs_manager_devices(request: Request):
     user = _require_login(request)
     if not user:
         return RedirectResponse(url=_url("/login"), status_code=302)
-    return templates.TemplateResponse("ccs_devices.html", _ctx(request))
+    return templates.TemplateResponse(request, "ccs_devices.html", _ctx(request))
 
 
 @app.get("/ccs-manager/subscriptions", response_class=HTMLResponse)
@@ -254,7 +258,7 @@ async def read_ccs_manager_subscriptions(request: Request):
     user = _require_login(request)
     if not user:
         return RedirectResponse(url=_url("/login"), status_code=302)
-    return templates.TemplateResponse("ccs_subscriptions.html", _ctx(request))
+    return templates.TemplateResponse(request, "ccs_subscriptions.html", _ctx(request))
 
 
 @app.get("/ccs-manager/users", response_class=HTMLResponse)
@@ -262,7 +266,7 @@ async def read_ccs_manager_users(request: Request):
     user = _require_login(request)
     if not user:
         return RedirectResponse(url=_url("/login"), status_code=302)
-    return templates.TemplateResponse("ccs_users.html", _ctx(request))
+    return templates.TemplateResponse(request, "ccs_users.html", _ctx(request))
 
 
 @app.get("/ccs-manager/audit-logs", response_class=HTMLResponse)
@@ -277,5 +281,22 @@ async def read_audit_logs(request: Request):
     logs = get_recent_logs(limit=500)
     stats = get_log_stats()
     return templates.TemplateResponse(
-        "admin_logs.html", _ctx(request, logs=logs, stats=stats)
+        request, "admin_logs.html", _ctx(request, logs=logs, stats=stats)
+    )
+
+
+@app.get("/mentors/feedback", response_class=HTMLResponse)
+async def read_mentor_feedback(request: Request):
+    """Admin-only feedback inbox (Mentors module)."""
+    user = _require_login(request)
+    if not user:
+        return RedirectResponse(url=_url("/login"), status_code=302)
+    from app.auth.users import role_gte
+
+    if not role_gte(user.get("role", "viewer"), "admin"):
+        return HTMLResponse("<h2>403 — Admin access required.</h2>", status_code=403)
+    items = get_recent_feedback(limit=500)
+    stats = get_feedback_stats()
+    return templates.TemplateResponse(
+        request, "mentor_feedback.html", _ctx(request, items=items, stats=stats)
     )

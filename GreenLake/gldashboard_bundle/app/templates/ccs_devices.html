@@ -1863,33 +1863,12 @@
                 throw new Error(text);
             }
 
-            const reader = resp.body.getReader();
-            const decoder = new TextDecoder('utf-8');
-            let buffer = '';
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                
-                buffer = lines.pop(); // Keep incomplete tail
-                
-                for (const line of lines) {
-                    if (!line.trim()) continue;
-                    const event = JSON.parse(line);
-                    
-                    if (event.type === 'progress') {
-                        const pct = Math.round((event.current / event.total) * 100) || 0;
-                        document.getElementById('devQueryProgressBar').style.width = pct + '%';
-                        document.getElementById('devQueryLoaderText').textContent = `Querying devices (${event.current}/${event.total}) - ${event.message}`;
-                    } else if (event.type === 'complete') {
-                        showResults(event.results, 'Device Query Results', 'Serial Number');
-                        return; // exit cleanly
-                    }
+            await CCSProgress.readNdjsonResponse(resp, {
+                loaderId: 'devQueryLoader',
+                onComplete: function (event) {
+                    showResults(event.results, 'Device Query Results', 'Serial Number');
                 }
-            }
+            });
         } catch (e) {
             if (e.name === 'AbortError') {
                 console.log("Query aborted.");
@@ -2065,36 +2044,13 @@
                 throw new Error(text);
             }
 
-            const reader = resp.body.getReader();
-            const decoder = new TextDecoder('utf-8');
-            let buffer = '';
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                
-                buffer = lines.pop(); // Keep incomplete tail
-                
-                for (const line of lines) {
-                    if (!line.trim()) continue;
-                    const event = JSON.parse(line);
-                    
-                    if (event.type === 'progress') {
-                        const pct = Math.round((event.current / event.total) * 100) || 0;
-                        document.getElementById('delUserProgressBar').style.width = pct + '%';
-                        document.getElementById('delUserLoaderText').textContent = isDryRun
-                            ? `Simulating (${event.current}/${event.total})...`
-                            : `Deleting users (${event.current}/${event.total})...`;
-                    } else if (event.type === 'complete') {
-                        const title = event.dry_run ? ' Dry Run — Delete Users' : 'User Deletion Results';
-                        showResults(event.results, title, 'Email / Username');
-                        return; // exit cleanly
-                    }
+            await CCSProgress.readNdjsonResponse(resp, {
+                loaderId: 'delUserLoader',
+                onComplete: function (event) {
+                    const title = event.dry_run ? ' Dry Run — Delete Users' : 'User Deletion Results';
+                    showResults(event.results, title, 'Email / Username');
                 }
-            }
+            });
         } catch (e) {
             if (e.name === 'AbortError') {
                 console.log("Deletion aborted.");
@@ -2335,9 +2291,7 @@
     }
 
     // ── UI Helpers ────────────────────────────────────────────────────────────
-    function setLoader(id, show) {
-        document.getElementById(id).classList.toggle('visible', show);
-    }
+    /* setLoader → ccs-progress.js (global bar) */
 
     function setBtn(id, disabled) {
         document.getElementById(id).disabled = disabled;

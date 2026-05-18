@@ -1,6 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
+    <script src="/greenlake-theme.js"></script>
+    <link rel="stylesheet" href="/greenlake-theme.css">
+
     <script>window.__GL_PREFIX__ = "{{ gl_prefix }}";</script>
 
     <meta charset="UTF-8">
@@ -177,8 +180,12 @@
             text-decoration: underline;
         }
     </style>
+    <link rel="stylesheet" href="{{ gl_prefix }}/static/css/dashboard-dark.css">
+
 </head>
-<body>
+<body class="login-body">
+    <button type="button" id="themeToggle" class="gl-theme-toggle" style="position:fixed;top:20px;right:20px;z-index:100" aria-label="Toggle theme" title="Toggle light/dark mode"><span class="theme-icon theme-icon-light" aria-hidden="true">&#9728;</span><span class="theme-icon theme-icon-dark" aria-hidden="true">&#9790;</span></button>
+
     <div class="login-card">
         <div class="logo-row">
             <div class="logo-box">GL</div>

@@ -1,6 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
+  <script src="/greenlake-theme.js"></script>
+  <link rel="stylesheet" href="/greenlake-theme.css" />
+  <script src="/greenlake-feedback.js" defer></script>
+
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Subscription Management — HPE GreenLake</title>
@@ -521,6 +525,8 @@
     .tab-btn.active { background: #01A982 !important; color: #FFFFFF !important; }
     .toast { border-radius: 4px !important; font-weight: 600 !important; box-shadow: 0 4px 12px rgba(0,0,0,0.12) !important; }
   </style>
+  <link rel="stylesheet" href="/platform-tools-dark.css" />
+
 </head>
 <body>
 
@@ -549,6 +555,10 @@
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
       Home
     </a>
+    <button type="button" id="themeToggle" class="gl-theme-toggle" aria-label="Toggle theme" title="Toggle light/dark mode">
+      <span class="theme-icon theme-icon-light" aria-hidden="true">&#9728;</span>
+      <span class="theme-icon theme-icon-dark" aria-hidden="true">&#9790;</span>
+    </button>
   </nav>
 </header>
 

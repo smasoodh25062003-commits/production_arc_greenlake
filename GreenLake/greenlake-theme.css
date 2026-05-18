@@ -1,0 +1,83 @@
+/* Shared theme toggle + SSO-aligned tokens (used by platform-tools-dark.css) */
+
+:root,
+[data-theme="light"] {
+  --gl-bg: #fafaf9;
+  --gl-bg-gradient-start: #ffffff;
+  --gl-bg-gradient-end: #f4f7f5;
+  --gl-surface: #ffffff;
+  --gl-surface-2: #f7f7f6;
+  --gl-surface-3: #f0f2f1;
+  --gl-border: #ebebe8;
+  --gl-border-strong: #d8d9d5;
+  --gl-text: #0b1f1a;
+  --gl-text-muted: #556963;
+  --gl-text-subtle: #8b9591;
+  --gl-primary: #01a982;
+  --gl-primary-hover: #00765c;
+  --gl-primary-soft: rgba(1, 169, 130, 0.12);
+}
+
+[data-theme="dark"] {
+  --gl-bg: #06100d;
+  --gl-bg-gradient-start: #08140f;
+  --gl-bg-gradient-end: #050a08;
+  --gl-surface: #0c1916;
+  --gl-surface-2: #11231e;
+  --gl-surface-3: #162d26;
+  --gl-border: #2a443c;
+  --gl-border-strong: #3d5c52;
+  --gl-text: #ecf5f1;
+  --gl-text-muted: #b8cdc4;
+  --gl-text-subtle: #8fa89f;
+  --gl-primary: #1ed19f;
+  --gl-primary-hover: #4be0b7;
+  --gl-primary-soft: rgba(30, 209, 159, 0.14);
+}
+
+.gl-theme-toggle,
+#themeToggle.icon-btn {
+  background: transparent;
+  border: 1px solid var(--gl-border, #d5d5d5);
+  color: var(--gl-text-muted, #555);
+  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+  padding: 0;
+  line-height: 1;
+}
+
+.gl-theme-toggle:hover,
+#themeToggle.icon-btn:hover {
+  background: var(--gl-surface-2, #f7f7f6);
+  color: var(--gl-text, #2c2c2c);
+  border-color: var(--gl-border-strong, #b0b0b0);
+}
+
+[data-theme="dark"] .gl-theme-toggle:hover,
+[data-theme="dark"] #themeToggle.icon-btn:hover {
+  background: var(--gl-surface-3, #162d26);
+  color: var(--gl-text, #ecf5f1);
+  border-color: var(--gl-primary, #1ed19f);
+}
+
+.theme-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+[data-theme="light"] .theme-icon-dark,
+:root:not([data-theme="dark"]) .theme-icon-dark {
+  display: none;
+}
+
+[data-theme="dark"] .theme-icon-light {
+  display: none;
+}

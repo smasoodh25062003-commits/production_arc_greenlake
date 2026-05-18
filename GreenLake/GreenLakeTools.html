@@ -1,6 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
+  <script src="/greenlake-theme.js"></script>
+  <link rel="stylesheet" href="/greenlake-theme.css" />
+  <script src="/greenlake-feedback.js" defer></script>
+
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HPE GreenLake — Platform Tools</title>
@@ -1409,6 +1413,8 @@
     /* Toast */
     .toast { border-radius: 4px !important; font-weight: 600 !important; box-shadow: 0 4px 12px rgba(0,0,0,0.12) !important; }
   </style>
+  <link rel="stylesheet" href="/platform-tools-dark.css" />
+
 </head>
 <body>
 
@@ -1442,6 +1448,10 @@
       All Systems Operational
     </div>
     <div class="nav-pill">v1.0.0 — LOCAL</div>
+    <button type="button" id="themeToggle" class="gl-theme-toggle" aria-label="Toggle theme" title="Toggle light/dark mode">
+      <span class="theme-icon theme-icon-light" aria-hidden="true">&#9728;</span>
+      <span class="theme-icon theme-icon-dark" aria-hidden="true">&#9790;</span>
+    </button>
   </nav>
 </header>
 
@@ -1788,6 +1798,34 @@
         </div>
         <div class="card-footer">
           <div class="card-meta">/gldash/ · /rohit</div>
+          <div class="card-arrow">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tool-card card-mentor card-cyan" id="tile-feedback-inbox" style="display:none;" onclick="window.location.href='/gldash/mentors/feedback'">
+      <div class="card-glow"></div>
+      <div class="card-top-bar"></div>
+      <div class="card-body">
+        <div class="card-header-row">
+          <div class="card-icon-wrap">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+          <div class="card-badge badge-mentor"><div class="badge-dot"></div>Admin</div>
+        </div>
+        <div class="card-module-label">Mentor Module 02</div>
+        <div class="card-title">Feedback Inbox</div>
+        <div class="card-desc">Review user feedback. Requires admin login at <code>/gldash/login</code>.</div>
+        <div class="card-features">
+          <span class="feature-tag">Admin only</span>
+          <span class="feature-tag">Triage</span>
+        </div>
+        <div class="card-footer">
+          <div class="card-meta">/gldash/mentors/feedback</div>
           <div class="card-arrow">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
           </div>

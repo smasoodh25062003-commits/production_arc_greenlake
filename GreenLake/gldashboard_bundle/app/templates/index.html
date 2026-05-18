@@ -1,6 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light" class="hub-page">
 <head>
+    <script src="/greenlake-theme.js"></script>
+    <link rel="stylesheet" href="/greenlake-theme.css">
+
     <script>window.__GL_PREFIX__ = "{{ gl_prefix }}";</script>
 
     <meta charset="UTF-8">
@@ -220,8 +223,12 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="{{ gl_prefix }}/static/css/dashboard-dark.css">
+
 </head>
 <body>
+    <button type="button" id="themeToggle" class="gl-theme-toggle" style="position:fixed;top:20px;right:20px;z-index:100" aria-label="Toggle theme" title="Toggle light/dark mode"><span class="theme-icon theme-icon-light" aria-hidden="true">&#9728;</span><span class="theme-icon theme-icon-dark" aria-hidden="true">&#9790;</span></button>
+
 
     <header class="hub-header">
         <div class="hub-logo">
