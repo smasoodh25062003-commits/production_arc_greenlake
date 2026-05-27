@@ -27,6 +27,20 @@ TENANT_SUFFIX = "|TENANT|"
 def _clean(value: Any) -> str:
     return str(value or "").strip()
 
+_WS_ROLE_ALIASES = {
+    "workspace read only": "Workspace Observers",
+}
+
+
+def _normalize_ws_role(value: Any) -> str:
+    raw = _clean(value)
+    if not raw:
+        return raw
+    lowered = raw.lower()
+    if lowered == "super administrator":
+        raise ValueError("Super Administrator is not a valid workspace role.")
+    return _WS_ROLE_ALIASES.get(lowered, raw)
+
 
 def _scope_target(value: Any, default: str = MSP_TENANT) -> str:
     v = _clean(value).lower().replace("-", "_")
@@ -177,7 +191,7 @@ def build_role_string(payload: dict[str, Any]) -> str:
                     continue
             elif not wid:
                 continue
-            role = _clean(ws.get("role")) or DEFAULT_ROLE
+            role = _normalize_ws_role(ws.get("role")) or DEFAULT_ROLE
             scope = _clean(ws.get("scope")) or DEFAULT_SCOPE
             wscope_target = _scope_target(ws.get("scope_target"))
             if wtype == "msp":
@@ -209,7 +223,7 @@ def build_role_string(payload: dict[str, Any]) -> str:
                 )
         elif not workspace_id:
             raise ValueError("Workspace ID is required.")
-        role = _clean(payload.get("role")) or DEFAULT_ROLE
+        role = _normalize_ws_role(payload.get("role")) or DEFAULT_ROLE
         scope = _clean(payload.get("scope")) or DEFAULT_SCOPE
         wscope_target = _scope_target(payload.get("scope_target"))
         if wtype == "msp":
