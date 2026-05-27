@@ -42,6 +42,15 @@ def build_flask_app(*, mount_sso_via_dispatcher: bool = True) -> Flask:
     def greenlake_tools():
         return send_from_directory(BASE_DIR, "GreenLakeTools.html")
 
+    @app.route("/favicon.ico")
+    def favicon_ico():
+        # Serve PNG for /favicon.ico so browsers pick it up automatically.
+        return send_from_directory(BASE_DIR, "favicon.png")
+
+    @app.route("/favicon.png")
+    def favicon_png():
+        return send_from_directory(BASE_DIR, "favicon.png")
+
     @app.route("/DeviceManagement.html")
     def device_management():
         return send_from_directory(BASE_DIR, "DeviceManagement.html")
