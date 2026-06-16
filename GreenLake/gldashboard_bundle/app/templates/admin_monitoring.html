@@ -107,6 +107,50 @@
   .bad { color: #b91c1c; border-color: rgba(185,28,28,0.25); background: rgba(185,28,28,0.10); }
 
   .chart { height: 260px; }
+
+  .mon-section-title {
+    margin: 0 0 12px;
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--mon-text);
+    letter-spacing: -0.01em;
+  }
+
+  .mon-bar {
+    height: 8px;
+    border-radius: 8px;
+    background: var(--mon-surface-alt);
+    border: 1px solid var(--mon-border);
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  .mon-bar > span {
+    display: block;
+    height: 100%;
+    border-radius: 8px;
+    background: #018f6f;
+    transition: width 0.3s ease;
+  }
+  .mon-bar.warn > span { background: #b45309; }
+  .mon-bar.bad > span { background: #b91c1c; }
+
+  .mon-meta {
+    display: grid;
+    gap: 8px;
+    margin-top: 10px;
+    font-size: 0.82rem;
+    color: var(--mon-muted);
+  }
+  .mon-meta-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: var(--mon-surface-alt);
+    border: 1px solid var(--mon-border);
+  }
+  .mon-meta-row strong { color: var(--mon-text); font-weight: 700; }
 </style>
 {% endblock %}
 
@@ -115,9 +159,85 @@
 
   <div class="mon-header">
     <h2>Monitoring</h2>
-    <p>Admin-only view of recent traffic and subscription/usage signals. Traffic counts use usernames when available, otherwise IP.</p>
+    <p>Admin-only view of VM health, traffic, and subscription usage. Traffic counts use usernames when available, otherwise IP.</p>
   </div>
 
+  <h3 class="mon-section-title">Server health</h3>
+  <div class="mon-grid">
+    <div class="mon-card">
+      <div class="label">CPU</div>
+      <div class="value">{{ server.cpu_percent if server.cpu_percent is not none else '—' }}{% if server.cpu_percent is not none %}%{% endif %}</div>
+      <div class="sub">{{ server.cpu_count or '—' }} logical cores</div>
+      {% if server.cpu_percent is not none %}
+      <div class="mon-bar {{ server.cpu_level or '' }}"><span style="width: {{ server.cpu_percent }}%;"></span></div>
+      {% endif %}
+    </div>
+    <div class="mon-card">
+      <div class="label">Memory</div>
+      <div class="value">{{ server.memory.percent if server.memory and server.memory.percent is not none else '—' }}{% if server.memory and server.memory.percent is not none %}%{% endif %}</div>
+      <div class="sub">{{ server.memory.used_human or '—' }} / {{ server.memory.total_human or '—' }}</div>
+      {% if server.memory and server.memory.percent is not none %}
+      <div class="mon-bar {{ server.memory.level or '' }}"><span style="width: {{ server.memory.percent }}%;"></span></div>
+      {% endif %}
+    </div>
+    <div class="mon-card">
+      <div class="label">Disk ({{ server.disk.path or '/' }})</div>
+      <div class="value">{{ server.disk.percent if server.disk and server.disk.percent is not none else '—' }}{% if server.disk and server.disk.percent is not none %}%{% endif %}</div>
+      <div class="sub">{{ server.disk.used_human or '—' }} / {{ server.disk.total_human or '—' }}</div>
+      {% if server.disk and server.disk.percent is not none %}
+      <div class="mon-bar {{ server.disk.level or '' }}"><span style="width: {{ server.disk.percent }}%;"></span></div>
+      {% endif %}
+    </div>
+    <div class="mon-card">
+      <div class="label">Service ({{ server.service.name }})</div>
+      <div class="value" style="font-size:1.2rem;">
+        {% if server.service.active %}
+        <span class="badge ok">Running</span>
+        {% elif server.service.state != 'unknown' %}
+        <span class="badge bad">{{ server.service.state }}</span>
+        {% else %}
+        <span class="badge warn">Unknown</span>
+        {% endif %}
+      </div>
+      <div class="sub">systemd status</div>
+    </div>
+  </div>
+
+  <div class="mon-split" style="margin-bottom: 18px;">
+    <div class="mon-box">
+      <h3>Host details</h3>
+      <div class="mon-meta">
+        <div class="mon-meta-row"><span>Hostname</span><strong class="mono">{{ server.hostname }}</strong></div>
+        <div class="mon-meta-row"><span>System uptime</span><strong>{{ server.system_uptime_human }}</strong></div>
+        <div class="mon-meta-row"><span>App uptime</span><strong>{{ server.app_uptime_human }}</strong></div>
+        <div class="mon-meta-row"><span>Python</span><strong class="mono">{{ server.python }}</strong></div>
+        <div class="mon-meta-row"><span>Collected (UTC)</span><strong class="mono">{{ server.collected_at[:19] }}</strong></div>
+      </div>
+    </div>
+
+    <div class="mon-box">
+      <h3>Load &amp; process</h3>
+      <div class="mon-meta">
+        {% if server.load_avg %}
+        <div class="mon-meta-row"><span>Load avg (1m)</span><strong>{{ server.load_avg['1m'] }}</strong></div>
+        <div class="mon-meta-row"><span>Load avg (5m)</span><strong>{{ server.load_avg['5m'] }}</strong></div>
+        <div class="mon-meta-row"><span>Load avg (15m)</span><strong>{{ server.load_avg['15m'] }}</strong></div>
+        {% else %}
+        <div class="mon-meta-row"><span>Load average</span><strong>—</strong></div>
+        {% endif %}
+        <div class="mon-meta-row"><span>App PID</span><strong class="mono">{{ server.process.pid or '—' }}</strong></div>
+        <div class="mon-meta-row"><span>App memory</span><strong>{{ server.process.memory_human or '—' }}</strong></div>
+        {% if server.service.detail %}
+        <div class="mon-meta-row"><span>Service since</span><strong class="mono">{{ server.service.detail }}</strong></div>
+        {% endif %}
+      </div>
+      {% if server.error %}
+      <div style="margin-top:10px; color:#b91c1c; font-size:0.82rem;">{{ server.error }}</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <h3 class="mon-section-title">Application traffic</h3>
   <div class="mon-grid">
     <div class="mon-card">
       <div class="label">Active (last 5 min)</div>

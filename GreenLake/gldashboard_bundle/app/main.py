@@ -14,6 +14,7 @@ from app.auth.rbac import get_current_user, require_role
 from app.audit.logger import get_recent_logs, get_log_stats
 from app.feedback.logger import get_recent_feedback, get_feedback_stats
 from app.monitoring.traffic import log_request, get_traffic_stats
+from app.monitoring.server_health import get_server_health
 
 _BUNDLE_ROOT = Path(__file__).resolve().parent.parent
 _APP_DIR = _BUNDLE_ROOT / "app"
@@ -329,6 +330,7 @@ async def read_admin_monitoring(request: Request):
         return HTMLResponse("<h2>403 — Admin access required.</h2>", status_code=403)
 
     traffic = get_traffic_stats()
+    server = get_server_health()
 
     # Best-effort subscription usage summary (treats quantity-available as "used")
     usage = {"configured": False}
@@ -373,7 +375,7 @@ async def read_admin_monitoring(request: Request):
     return templates.TemplateResponse(
         request,
         "admin_monitoring.html",
-        _ctx(request, traffic=traffic, usage=usage),
+        _ctx(request, traffic=traffic, usage=usage, server=server),
     )
 
 
