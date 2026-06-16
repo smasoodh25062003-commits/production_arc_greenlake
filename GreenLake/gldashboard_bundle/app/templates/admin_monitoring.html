@@ -1,0 +1,262 @@
+{% extends "ccs_layout.html" %}
+{% block title %}Monitoring — CCS Manager{% endblock %}
+
+{% block head %}
+<style>
+  .mon-page {
+    --mon-text: #141a17;
+    --mon-muted: #5c6b64;
+    --mon-surface: #ffffff;
+    --mon-surface-alt: #f0f4f2;
+    --mon-border: #b8c4be;
+    --mon-shadow: 0 2px 14px rgba(20, 40, 30, 0.08);
+  }
+  [data-theme="dark"] .mon-page {
+    --mon-text: #ecf5f1;
+    --mon-muted: #9fb5ab;
+    --mon-surface: #0c1916;
+    --mon-surface-alt: #11231e;
+    --mon-border: #2a443c;
+    --mon-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  }
+
+  .mon-header { margin-bottom: 18px; }
+  .mon-header h2 { margin: 0; font-size: 1.35rem; font-weight: 800; color: var(--mon-text); }
+  .mon-header p { margin: 6px 0 0; color: var(--mon-muted); font-size: 0.9rem; }
+
+  .mon-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  .mon-card {
+    background: var(--mon-surface);
+    border: 1px solid var(--mon-border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    box-shadow: var(--mon-shadow);
+  }
+  .mon-card .label {
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--mon-muted);
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .mon-card .value {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--mon-text);
+    line-height: 1.1;
+  }
+  .mon-card .sub { margin-top: 6px; font-size: 0.78rem; color: var(--mon-muted); }
+
+  .mon-split {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 14px;
+    align-items: start;
+  }
+  .mon-box {
+    background: var(--mon-surface);
+    border: 1px solid var(--mon-border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    box-shadow: var(--mon-shadow);
+  }
+  .mon-box h3 {
+    margin: 0 0 10px;
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--mon-muted);
+    font-weight: 800;
+  }
+  .mon-list {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .mon-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: var(--mon-surface-alt);
+    border: 1px solid var(--mon-border);
+    color: var(--mon-text);
+    font-size: 0.85rem;
+  }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+  .badge {
+    font-size: 0.72rem;
+    padding: 2px 8px;
+    border-radius: 20px;
+    border: 1px solid var(--mon-border);
+    color: var(--mon-muted);
+    background: var(--mon-surface);
+    font-weight: 700;
+  }
+  .ok { color: #15803d; border-color: rgba(21,128,61,0.25); background: rgba(21,128,61,0.08); }
+  .warn { color: #b45309; border-color: rgba(180,83,9,0.25); background: rgba(180,83,9,0.10); }
+  .bad { color: #b91c1c; border-color: rgba(185,28,28,0.25); background: rgba(185,28,28,0.10); }
+
+  .chart { height: 260px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mon-page">
+
+  <div class="mon-header">
+    <h2>Monitoring</h2>
+    <p>Admin-only view of recent traffic and subscription/usage signals. Traffic counts use usernames when available, otherwise IP.</p>
+  </div>
+
+  <div class="mon-grid">
+    <div class="mon-card">
+      <div class="label">Active (last 5 min)</div>
+      <div class="value">{{ traffic.active_5m or 0 }}</div>
+      <div class="sub">Unique users/IPs</div>
+    </div>
+    <div class="mon-card">
+      <div class="label">Requests (last 1 hour)</div>
+      <div class="value">{{ traffic.requests_1h or 0 }}</div>
+      <div class="sub">All pages + APIs (excludes static)</div>
+    </div>
+    <div class="mon-card">
+      <div class="label">Unique (last 1 hour)</div>
+      <div class="value">{{ traffic.unique_1h or 0 }}</div>
+      <div class="sub">Distinct users/IPs</div>
+    </div>
+    <div class="mon-card">
+      <div class="label">Errors (last 1 hour)</div>
+      <div class="value">{{ traffic.errors_1h or 0 }}</div>
+      <div class="sub">HTTP status ≥ 400</div>
+    </div>
+  </div>
+
+  <div class="mon-split">
+    <div class="mon-box">
+      <h3>Requests over time (last 24 hours)</h3>
+      <div class="chart">
+        <canvas id="trafficChart"></canvas>
+      </div>
+    </div>
+
+    <div class="mon-box">
+      <h3>Status mix (last 1 hour)</h3>
+      <ul class="mon-list">
+        <li><span>2xx</span><span class="badge ok">{{ (traffic.status_buckets_1h or {}).get('2xx', 0) }}</span></li>
+        <li><span>3xx</span><span class="badge">{{ (traffic.status_buckets_1h or {}).get('3xx', 0) }}</span></li>
+        <li><span>4xx</span><span class="badge warn">{{ (traffic.status_buckets_1h or {}).get('4xx', 0) }}</span></li>
+        <li><span>5xx</span><span class="badge bad">{{ (traffic.status_buckets_1h or {}).get('5xx', 0) }}</span></li>
+      </ul>
+      <div style="margin-top:12px; color:var(--mon-muted); font-size:0.8rem;">
+        Total tracked: <span class="mono">{{ traffic.total or 0 }}</span>
+      </div>
+    </div>
+
+    <div class="mon-box">
+      <h3>Top paths (last 1 hour)</h3>
+      {% if traffic.top_paths_1h %}
+      <ul class="mon-list">
+        {% for row in traffic.top_paths_1h %}
+        <li>
+          <span class="mono" title="{{ row.path }}">{{ row.path }}</span>
+          <span class="badge">{{ row.count }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <div style="color:var(--mon-muted); font-size:0.9rem;">No traffic yet.</div>
+      {% endif %}
+    </div>
+
+    <div class="mon-box">
+      <h3>Subscription capacity (best-effort)</h3>
+      {% if usage and usage.configured %}
+        <div class="mon-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-bottom: 0;">
+          <div class="mon-card" style="box-shadow:none;">
+            <div class="label">Subscriptions</div>
+            <div class="value">{{ usage.subscriptions_total or 0 }}</div>
+            <div class="sub">Fetched from GLP</div>
+          </div>
+          <div class="mon-card" style="box-shadow:none;">
+            <div class="label">Quantity (sum)</div>
+            <div class="value">{{ usage.qty_total or 0 }}</div>
+            <div class="sub">Across all items</div>
+          </div>
+          <div class="mon-card" style="box-shadow:none;">
+            <div class="label">Used (est.)</div>
+            <div class="value">{{ usage.qty_used or 0 }}</div>
+            <div class="sub">max(0, quantity - available)</div>
+          </div>
+          <div class="mon-card" style="box-shadow:none;">
+            <div class="label">Utilization</div>
+            <div class="value">{{ usage.util_pct or 0 }}%</div>
+            <div class="sub">Used / Quantity</div>
+          </div>
+        </div>
+      {% else %}
+        <div style="color:var(--mon-muted); font-size:0.9rem;">GLP client not configured, or subscription data unavailable.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  function monChartColors() {
+    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    return {
+      text: dark ? 'rgba(255,255,255,0.65)' : '#4a5852',
+      grid: dark ? 'rgba(255,255,255,0.08)' : 'rgba(20, 40, 30, 0.1)',
+    };
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    const c = monChartColors();
+    Chart.defaults.color = c.text;
+    Chart.defaults.borderColor = c.grid;
+
+    const hourly = {{ traffic.hourly_24h | tojson | safe if traffic and traffic.hourly_24h else '{}' }};
+    const labels = Object.keys(hourly);
+    const values = Object.values(hourly);
+
+    if (labels.length) {
+      new Chart(document.getElementById('trafficChart'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Requests',
+            data: values,
+            borderColor: '#018f6f',
+            backgroundColor: 'rgba(1, 143, 111, 0.12)',
+            tension: 0.35,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: c.text }, grid: { color: c.grid } },
+            y: { ticks: { color: c.text }, grid: { color: c.grid } }
+          }
+        }
+      });
+    }
+  });
+</script>
+{% endblock %}
+

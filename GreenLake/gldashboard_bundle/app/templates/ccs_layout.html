@@ -356,6 +356,9 @@
                     </a>
                     {% if current_user and current_user.role == 'admin' %}
                     <div class="ccs-sidebar-divider" style="height:1px; background:var(--ccs-border); margin:12px 4px;"></div>
+                    <a href="{{ gl_prefix }}/ccs-manager/monitoring" class="ccs-side-item {% if 'monitoring' in request.url.path %}active{% endif %}">
+                        <i data-feather="bar-chart-2"></i> Monitoring
+                    </a>
                     <a href="{{ gl_prefix }}/ccs-manager/audit-logs" class="ccs-side-item ccs-side-audit {% if 'audit-logs' in request.url.path %}active{% endif %}">
                         <i data-feather="activity"></i> Audit Logs
                     </a>

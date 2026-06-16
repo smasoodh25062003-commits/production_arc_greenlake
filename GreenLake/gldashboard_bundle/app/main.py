@@ -13,6 +13,7 @@ from app.auth.session import read_session, set_session, clear_session
 from app.auth.rbac import get_current_user, require_role
 from app.audit.logger import get_recent_logs, get_log_stats
 from app.feedback.logger import get_recent_feedback, get_feedback_stats
+from app.monitoring.traffic import log_request, get_traffic_stats
 
 _BUNDLE_ROOT = Path(__file__).resolve().parent.parent
 _APP_DIR = _BUNDLE_ROOT / "app"
@@ -55,6 +56,38 @@ app.include_router(feedback_router, prefix="/api/feedback", tags=["feedback"])
 from app.api.routers import sites_groups
 
 app.include_router(sites_groups.router, prefix="/api", tags=["sites-groups"])
+
+@app.middleware("http")
+async def _traffic_middleware(request: Request, call_next):
+    """Best-effort request tracking for the admin monitoring page."""
+    # Skip static assets early (avoid noise + extra IO)
+    path = request.url.path or ""
+    if path.startswith("/static") or path.endswith((".css", ".js", ".map", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2")):
+        return await call_next(request)
+
+    from time import perf_counter
+
+    t0 = perf_counter()
+    response = await call_next(request)
+    dur_ms = int((perf_counter() - t0) * 1000)
+
+    user = read_session(request) or {}
+    username = user.get("username") if isinstance(user, dict) else None
+    role = user.get("role") if isinstance(user, dict) else None
+    ip = request.client.host if request.client else None
+    ua = request.headers.get("user-agent")
+
+    log_request(
+        path=path,
+        method=request.method,
+        status_code=getattr(response, "status_code", 0) or 0,
+        duration_ms=dur_ms,
+        username=username,
+        role=role,
+        ip=ip,
+        user_agent=ua,
+    )
+    return response
 
 
 # ── Auth Routes ────────────────────────────────────────────────────────────────
@@ -282,6 +315,65 @@ async def read_audit_logs(request: Request):
     stats = get_log_stats()
     return templates.TemplateResponse(
         request, "admin_logs.html", _ctx(request, logs=logs, stats=stats)
+    )
+
+@app.get("/ccs-manager/monitoring", response_class=HTMLResponse)
+async def read_admin_monitoring(request: Request):
+    """Admin-only monitoring: traffic + usage summaries."""
+    user = _require_login(request)
+    if not user:
+        return RedirectResponse(url=_url("/login"), status_code=302)
+    from app.auth.users import role_gte
+
+    if not role_gte(user.get("role", "viewer"), "admin"):
+        return HTMLResponse("<h2>403 — Admin access required.</h2>", status_code=403)
+
+    traffic = get_traffic_stats()
+
+    # Best-effort subscription usage summary (treats quantity-available as "used")
+    usage = {"configured": False}
+    client = get_glp_client()
+    if client is not None:
+        usage["configured"] = True
+        try:
+            from pycentral.glp.subscriptions import Subscriptions
+
+            subs_api = Subscriptions()
+            subs = subs_api.get_all_subscriptions(client) or []
+
+            def _to_int(v):
+                try:
+                    return int(float(v))
+                except Exception:
+                    return None
+
+            qty_total = 0
+            qty_used = 0
+            for s in subs:
+                q = _to_int(s.get("quantity"))
+                a = _to_int(s.get("availableQuantity"))
+                if q is None:
+                    continue
+                qty_total += q
+                if a is not None:
+                    qty_used += max(0, q - a)
+
+            util_pct = int(round((qty_used / qty_total) * 100)) if qty_total else 0
+            usage.update(
+                {
+                    "subscriptions_total": len(subs),
+                    "qty_total": qty_total,
+                    "qty_used": qty_used,
+                    "util_pct": util_pct,
+                }
+            )
+        except Exception:
+            usage["configured"] = False
+
+    return templates.TemplateResponse(
+        request,
+        "admin_monitoring.html",
+        _ctx(request, traffic=traffic, usage=usage),
     )
 
 
