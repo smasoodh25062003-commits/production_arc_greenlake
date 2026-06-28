@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <script src="/greenlake-theme.js"></script>
+  <link rel="stylesheet" href="/greenlake-theme.css" />
+  <script src="/greenlake-feedback.js" defer></script>
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>User Roles — HPE GreenLake</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --hpe-green: #01A982; --hpe-cyan: #0D7AC7; --hpe-purple: #6A30C7;
+      --black: #FFFFFF; --surface: #F7F7F7; --panel: #FFFFFF;
+      --border: #D5D5D5; --border-bright: #B0B0B0;
+      --text: #2C2C2C; --text-secondary: #555555; --muted: #777777; --warn: #C63E3E;
+      --font-mono: 'Inter', 'JetBrains Mono', monospace;
+      --font-sans: 'Inter', system-ui, sans-serif;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--black); color: var(--text); font-family: var(--font-sans); font-weight: 500; min-height: 100vh; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+    @keyframes statusPulse { 0%,100%{box-shadow:0 0 0 0 rgba(1,169,130,.7);}50%{box-shadow:0 0 0 4px rgba(1,169,130,0);} }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .header { position: fixed; top:0; left:0; right:0; z-index: 100; height: 68px; display: flex; align-items: center; justify-content: space-between; padding: 0 48px; }
+    .header::before { content:''; position:absolute; inset:0; background: rgba(255,255,255,.88); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); z-index:-1; }
+    .logo-area { display:flex;align-items:center;gap:14px;text-decoration:none;cursor:pointer; }
+    .hpe-badge { width:38px;height:38px;background:var(--hpe-green);display:flex;align-items:center;justify-content:center;clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%); }
+    .hpe-badge svg { color:#FFFFFF; }
+    .logo-text-group { display:flex;flex-direction:column;gap:1px; }
+    .logo-eyebrow { font-family:var(--font-mono);font-size:9px;letter-spacing:.25em;text-transform:uppercase;color:var(--hpe-green); }
+    .logo-name { font-size:16px;font-weight:700;color:var(--text); }
+    .logo-name em { color:var(--hpe-green);font-style:normal; }
+    .header-nav { display:flex;align-items:center;gap:8px; }
+    .nav-pill { display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:100px;border:1px solid var(--border);font-family:var(--font-mono);font-size:10px;color:var(--muted);background:transparent;text-decoration:none; }
+    .nav-pill:hover { border-color:var(--hpe-green);color:var(--hpe-green); }
+    .status-dot { width:6px;height:6px;border-radius:50%;background:var(--hpe-green); }
+
+    .sidebar { position:fixed;left:0;top:68px;bottom:0;width:280px;z-index:90;background:var(--panel);border-right:1px solid var(--border-bright);display:flex;flex-direction:column;transition:transform .35s cubic-bezier(.22,1,.36,1); }
+    .sidebar.collapsed { transform:translateX(-280px); }
+    .sidebar-toggle-tab { position:fixed;left:280px;top:50%;transform:translateY(-50%);z-index:91;width:22px;height:64px;background:var(--panel);border:1px solid var(--border-bright);border-left:none;border-radius:0 10px 10px 0;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);padding:0;transition:left .35s; }
+    .sidebar.collapsed + .sidebar-toggle-tab { left:0; }
+    .sidebar-header { padding:18px 20px 14px;border-bottom:1px solid var(--border);background:var(--surface); }
+    .sidebar-header-title { font-family:var(--font-mono);font-size:10px;font-weight:600;color:var(--text-secondary);letter-spacing:.18em;text-transform:uppercase;display:flex;align-items:center;gap:8px; }
+    .sidebar-body { flex:1;overflow-y:auto; }
+    .sidebar-section { padding:18px 20px;border-bottom:1px solid var(--border); }
+    .sidebar-section-label { font-family:var(--font-mono);font-size:9px;font-weight:600;color:var(--muted);letter-spacing:.18em;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:8px; }
+    .sidebar-section-label::before { content:'';width:3px;height:12px;border-radius:2px;background:var(--hpe-green); }
+    .sidebar-status-row { display:flex;align-items:center;justify-content:space-between;margin-bottom:12px; }
+    .headers-status { font-family:var(--font-mono);font-size:9px;padding:2px 10px;border-radius:100px; }
+    .headers-status.set { background:rgba(1,169,130,.12);color:var(--hpe-green);border:1px solid rgba(1,169,130,.25); }
+    .headers-status.unset { background:rgba(90,101,128,.1);color:var(--muted);border:1px solid var(--border); }
+    .headers-hint { font-family:var(--font-mono);font-size:10px;color:var(--muted); }
+    .headers-textarea { width:100%;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-family:var(--font-mono);font-size:11px;color:var(--text);outline:none;resize:none;min-height:110px;max-height:180px;line-height:1.8; }
+
+    .page { position:relative;z-index:1;padding:110px 64px 80px calc(280px + 64px);transition:padding-left .35s; }
+    .page.sidebar-collapsed { padding-left:64px; }
+    .page-wrap { max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:28px; }
+    .page-hero { display:flex;align-items:flex-end;justify-content:space-between;padding-bottom:24px;border-bottom:1px solid var(--border); }
+    .page-overline { font-family:var(--font-mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--hpe-green);margin-bottom:12px;display:flex;align-items:center;gap:10px; }
+    .page-overline::before { content:'';width:24px;height:1px;background:var(--hpe-green); }
+    .page-title { font-size:clamp(32px,4vw,48px);font-weight:900;letter-spacing:-.04em;line-height:1;color:var(--text); }
+    .page-title em { font-style:normal;color:var(--hpe-green); }
+    .page-subtitle { margin-top:10px;font-size:15px;color:var(--text-secondary);line-height:1.7; }
+    .hero-stat { font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-align:right; }
+    .hero-stat span { display:block;font-size:44px;font-weight:700;color:var(--hpe-cyan);line-height:1.15;letter-spacing:-.02em; }
+
+    .input-card { background:var(--panel);border:1px solid var(--border);border-radius:20px;overflow:hidden; }
+    .input-body { padding:28px; }
+    .input-label { font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--text-secondary);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px; }
+    .input-label-dot { width:6px;height:6px;border-radius:50%;background:var(--hpe-green);animation:statusPulse 2s ease-in-out infinite; }
+    .emails-textarea { width:100%;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-family:var(--font-mono);font-size:12px;color:var(--text);outline:none;resize:vertical;min-height:160px;line-height:1.8; }
+    .input-actions-row { display:flex;align-items:center;justify-content:space-between;margin-top:18px;flex-wrap:wrap;gap:12px; }
+    .input-hint { font-family:var(--font-mono);font-size:10px;color:var(--muted); }
+    .btn-group { display:flex;gap:8px;align-items:center;flex-wrap:wrap; }
+    .btn { display:inline-flex;align-items:center;gap:7px;padding:10px 20px;border:none;border-radius:8px;font-size:12px;font-family:var(--font-mono);font-weight:600;cursor:pointer;white-space:nowrap; }
+    .btn-primary { background:var(--hpe-green);color:#fff; }
+    .btn-primary:hover:not(:disabled) { background:#00755A; }
+    .btn-primary:disabled { opacity:.4;cursor:not-allowed; }
+    .btn-primary.has-input { box-shadow:0 0 14px rgba(1,169,130,.35); }
+    .btn-ghost { background:transparent;color:var(--muted);border:1px solid var(--border); }
+    .btn-ghost:hover { border-color:var(--hpe-cyan);color:var(--hpe-cyan); }
+    .btn-success { background:transparent;color:var(--hpe-green);border:1px solid rgba(1,169,130,.4); }
+    .btn-success:hover { background:rgba(1,169,130,.1); }
+    .btn-sm { padding:8px 16px;font-size:11px; }
+
+    .stats-row { display:grid;grid-template-columns:repeat(3,1fr);gap:16px; }
+    .stat-card { padding:24px 28px;border-radius:16px;border:1px solid var(--border);background:var(--panel); }
+    .stat-label { font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px; }
+    .stat-val { font-family:var(--font-mono);font-size:40px;font-weight:700;line-height:1; }
+    .stat-card.users .stat-val { color:var(--hpe-green); }
+    .stat-card.workspaces .stat-val { color:var(--hpe-cyan); }
+    .stat-card.rows .stat-val { color:var(--hpe-purple); }
+
+    .auth-error-banner { display:none;align-items:flex-start;gap:12px;background:rgba(255,107,107,.07);border:1px solid rgba(255,107,107,.35);border-radius:12px;padding:16px 20px;font-family:var(--font-mono);font-size:12px;color:var(--warn); }
+    .auth-error-banner.visible { display:flex; }
+
+    .results-card { background:var(--panel);border:1px solid var(--border);border-radius:20px;overflow:hidden;display:flex;flex-direction:column;min-height:380px; }
+    .results-toolbar { display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid var(--border);background:var(--surface);gap:12px;flex-wrap:wrap; }
+    .results-title { font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--hpe-cyan);letter-spacing:.1em;text-transform:uppercase; }
+    .table-wrap { overflow:auto;max-height:60vh;border-radius:8px;border:1px solid var(--border);margin:20px; }
+    .results-body { flex:1;display:flex;flex-direction:column;min-height:320px;overflow:hidden; }
+    .loading-state { display:none;align-items:center;justify-content:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--surface);font-family:var(--font-mono);font-size:12px;color:var(--muted);flex-shrink:0; }
+    .loading-state.visible { display:flex; }
+    .roles-container { flex:1;display:flex;flex-direction:column;gap:16px;padding:20px;overflow-y:auto;min-height:200px; }
+    .user-block { border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--panel); }
+    .user-block:hover { border-color:rgba(1,169,130,.35); }
+    .user-header { display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;background:var(--surface);border-bottom:1px solid var(--border); }
+    .user-header-left { display:flex;align-items:center;gap:10px;min-width:0; }
+    .user-header-left svg { flex-shrink:0;color:var(--hpe-green); }
+    .user-email { font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--text);word-break:break-all; }
+    .user-ws-count { font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;padding:4px 10px;border-radius:100px;border:1px solid var(--border);background:var(--panel); }
+    .nested-table-wrap { overflow-x:auto; }
+    .nested-table { width:100%;border-collapse:collapse;font-size:13px;min-width:520px; }
+    .nested-table th { text-align:left;padding:10px 18px;font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;border-bottom:1px solid var(--border);background:var(--panel); }
+    .nested-table td { padding:12px 18px;border-bottom:1px solid var(--border);line-height:1.5;vertical-align:top; }
+    .nested-table tbody tr:last-child td { border-bottom:none; }
+    .nested-table tbody tr:nth-child(even) { background:rgba(0,0,0,.02); }
+    .nested-table tbody tr:hover { background:rgba(1,169,130,.04); }
+    .nested-table .mono { font-family:var(--font-mono);font-size:11px;color:var(--muted);word-break:break-all; }
+    .nested-table .roles-cell { color:var(--text); }
+    .nested-table .roles-cell.error { color:var(--warn); }
+    .nested-table .roles-cell.ok { color:#00755A; }
+    .nested-table .ws-name { font-weight:500;color:var(--text); }
+
+    .empty-state, .loading-state { color:var(--muted);font-family:var(--font-mono);font-size:12px; }
+    .empty-state { flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:80px 20px; }
+    .empty-state.hidden { display:none; }
+    .spinner { width:32px;height:32px;border:2px solid var(--border);border-top-color:var(--hpe-cyan);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0; }
+    .progress-bar-wrap { width:100%;max-width:420px;height:3px;background:var(--border);border-radius:2px;overflow:hidden; }
+    .progress-bar { height:100%;width:0%;background:linear-gradient(90deg,var(--hpe-cyan),var(--hpe-green));transition:width .3s ease; }
+
+    .toast { position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--panel);border-radius:12px;padding:12px 22px;font-size:12px;font-family:var(--font-mono);border:1px solid;z-index:9999;opacity:0;pointer-events:none;transition:all .3s; }
+    .toast.show { opacity:1;transform:translateX(-50%) translateY(0); }
+    .toast.info { border-color:var(--border-bright);color:var(--text-secondary); }
+    .toast.success { border-color:rgba(1,169,130,.4);color:var(--hpe-green); }
+    .toast.error { border-color:rgba(255,107,107,.4);color:var(--warn); }
+
+    .reveal { opacity:0;transform:translateY(24px);transition:opacity .7s,transform .7s; }
+    .reveal.visible { opacity:1;transform:translateY(0); }
+
+    html, body { background: #FFFFFF !important; }
+    body { font-family: 'Inter', 'Segoe UI', system-ui, sans-serif !important; color: #2C2C2C !important; font-weight: 400 !important; }
+    .page-title em { color: #01A982 !important; }
+    .header::before { background: #FFFFFF !important; border-bottom: 1px solid #E4E6EB !important; }
+    .btn-primary { background: #01A982 !important; color: #FFFFFF !important; border-radius: 4px !important; }
+    .btn-primary:hover:not(:disabled) { background: #00755A !important; }
+    .nav-pill { border-radius: 4px !important; font-size: 12px !important; text-transform: none !important; }
+    input, textarea { border-radius: 4px !important; }
+  </style>
+  <link rel="stylesheet" href="/platform-tools-dark.css" />
+</head>
+<body>
+
+<header class="header">
+  <div class="logo-area" onclick="window.location.href='/GreenLakeTools.html'">
+    <div class="hpe-badge"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L3 7v5c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z"/></svg></div>
+    <div class="logo-text-group">
+      <div class="logo-eyebrow">HPE GreenLake</div>
+      <div class="logo-name">Platform <em>Tools</em></div>
+    </div>
+  </div>
+  <nav class="header-nav">
+    <div class="nav-pill"><div class="status-dot"></div>Module 05</div>
+    <div class="nav-pill">v1.0.0 — LOCAL</div>
+    <a href="/GreenLakeTools.html" class="nav-pill">← Home</a>
+    <button type="button" id="themeToggle" class="gl-theme-toggle" aria-label="Toggle theme" title="Toggle light/dark mode">
+      <span class="theme-icon theme-icon-light" aria-hidden="true">&#9728;</span>
+      <span class="theme-icon theme-icon-dark" aria-hidden="true">&#9790;</span>
+    </button>
+  </nav>
+</header>
+
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-header-title">Configuration</div>
+  </div>
+  <div class="sidebar-body">
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Request Headers</div>
+      <div class="sidebar-status-row">
+        <span class="headers-hint">Status</span>
+        <span class="headers-status unset" id="headers-status">NOT SET</span>
+      </div>
+      <span class="headers-hint" style="display:block;margin-bottom:10px;">Paste raw headers — Authorization and Cookie extracted automatically</span>
+      <textarea class="headers-textarea" id="raw-headers" placeholder="# authorization&#10;# Bearer eyJhbG...&#10;# cookie&#10;# ccs-session=..." oninput="toggleApplyActive(this.value)"></textarea>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="clearHeaders()">CLEAR</button>
+        <button class="btn btn-primary btn-sm" id="apply-btn" style="flex:2;" onclick="applyHeaders()">APPLY</button>
+      </div>
+    </div>
+  </div>
+</div>
+<button class="sidebar-toggle-tab" id="sidebar-tab" onclick="toggleSidebar()">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+</button>
+
+<div class="page" id="main-page">
+  <div class="page-wrap">
+    <div class="page-hero reveal">
+      <div>
+        <div class="page-overline">Module 05</div>
+        <h1 class="page-title">User <em>Roles</em></h1>
+        <p class="page-subtitle">Look up workspace role assignments for one or more users across the HPE GreenLake platform. Paste emails (one per line) and fetch roles per workspace.</p>
+      </div>
+      <div class="hero-stat">
+        Result Rows
+        <span id="hero-row-count">—</span>
+      </div>
+    </div>
+
+    <div class="input-card reveal">
+      <div class="input-body">
+        <div class="input-label">
+          <div class="input-label-dot"></div>
+          <span>User emails</span>
+        </div>
+        <textarea class="emails-textarea" id="emails-input" placeholder="user.one@company.com&#10;user.two@company.com&#10;user.three@company.com" oninput="toggleFetchActive()"></textarea>
+        <div class="input-actions-row">
+          <span class="input-hint">One email per line · <span style="color:var(--hpe-cyan)">Ctrl+Enter</span> to fetch</span>
+          <div class="btn-group">
+            <button class="btn btn-ghost btn-sm" onclick="clearEmails()">Clear</button>
+            <button class="btn btn-primary" id="fetch-btn" onclick="runFetch()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              Fetch Roles
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats-row reveal" id="stats-row" style="display:none">
+      <div class="stat-card users">
+        <div class="stat-label">Users</div>
+        <div class="stat-val" id="stat-users">0</div>
+      </div>
+      <div class="stat-card workspaces">
+        <div class="stat-label">Workspaces</div>
+        <div class="stat-val" id="stat-workspaces">0</div>
+      </div>
+      <div class="stat-card rows">
+        <div class="stat-label">Rows</div>
+        <div class="stat-val" id="stat-rows">0</div>
+      </div>
+    </div>
+
+    <div class="auth-error-banner" id="auth-error-banner">
+      <div>
+        <strong>Authentication Failed</strong>
+        <div id="auth-error-msg" style="margin-top:4px;font-size:11px;opacity:.85;">Your Authorization / Cookie headers are expired or invalid.</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="dismissAuthError()">Dismiss</button>
+    </div>
+
+    <div class="results-card reveal">
+      <div class="results-toolbar">
+        <span class="results-title">Role Assignments</span>
+        <button class="btn btn-success btn-sm" onclick="exportCSV()" id="export-btn" style="display:none">↓ Export CSV</button>
+      </div>
+
+      <div class="empty-state" id="empty-state">
+        <div style="font-size:14px;font-weight:600;color:var(--text);">No results yet</div>
+        <div style="text-align:center;line-height:1.8;">Set headers, paste user emails, then click <strong>Fetch Roles</strong></div>
+      </div>
+
+      <div class="results-body" id="results-body" style="display:none">
+        <div class="loading-state" id="loading-state">
+          <div class="spinner"></div>
+          <div style="flex:1">
+            <div id="loading-msg">Starting...</div>
+            <div class="progress-bar-wrap" style="margin-top:8px;"><div class="progress-bar" id="loading-bar"></div></div>
+          </div>
+          <div id="loading-pct" style="color:var(--hpe-cyan);font-weight:600;min-width:36px;text-align:right;">0%</div>
+          <button class="btn btn-ghost btn-sm" onclick="stopFetch()">Stop</button>
+        </div>
+        <div class="roles-container" id="roles-container"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const revObs = new IntersectionObserver(entries => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }), { threshold: .1 });
+document.querySelectorAll('.reveal').forEach(el => revObs.observe(el));
+
+const API_BASE = (window.location.origin || 'http://localhost:5000') + '/api';
+let state = { parsedHeaders: {}, rows: [], fetching: false };
+let currentAbortController = null;
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('collapsed');
+  document.getElementById('main-page').classList.toggle('sidebar-collapsed');
+}
+
+document.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'Enter') runFetch(); });
+
+function parseEmails(raw) {
+  return [...new Set(String(raw || '').split(/[\n,;]+/).map(s => s.trim().toLowerCase()).filter(Boolean))];
+}
+
+function parseRawHeaders(raw) {
+  const lines = raw.split('\n'), headers = {};
+  let currentKey = null, currentValue = [];
+  for (let line of lines) {
+    line = line.trim().replace(/^#+\s*/, '').trim();
+    if (!line) continue;
+    if (line.toLowerCase() === 'authorization') {
+      if (currentKey && currentValue.length) headers[currentKey] = currentValue.join(' ');
+      currentKey = 'Authorization'; currentValue = [];
+    } else if (line.toLowerCase() === 'cookie') {
+      if (currentKey && currentValue.length) headers[currentKey] = currentValue.join(' ');
+      currentKey = 'Cookie'; currentValue = [];
+    } else if (currentKey) {
+      currentValue.push(line);
+    }
+  }
+  if (currentKey && currentValue.length) headers[currentKey] = currentValue.join(' ');
+  headers.Accept = 'application/json';
+  return headers;
+}
+
+function toggleApplyActive(val) {
+  document.getElementById('apply-btn').classList.toggle('is-active', (val || '').trim().length > 0);
+}
+
+function toggleFetchActive() {
+  const emails = parseEmails(document.getElementById('emails-input').value);
+  document.getElementById('fetch-btn').classList.toggle('has-input', emails.length > 0);
+}
+
+function applyHeaders() {
+  const raw = document.getElementById('raw-headers').value.trim();
+  if (!raw) { showToast('Paste your headers first.', 'error'); return; }
+  const parsed = parseRawHeaders(raw);
+  if (!parsed.Authorization && !parsed.Cookie) { showToast('No Authorization or Cookie found.', 'error'); return; }
+  state.parsedHeaders = parsed;
+  const keys = Object.keys(parsed).filter(k => k !== 'Accept');
+  document.getElementById('headers-status').textContent = keys.join(' + ') + ' SET';
+  document.getElementById('headers-status').className = 'headers-status set';
+  dismissAuthError();
+  showToast('Headers applied.', 'success');
+}
+
+function clearHeaders() {
+  document.getElementById('raw-headers').value = '';
+  state.parsedHeaders = {};
+  document.getElementById('headers-status').textContent = 'NOT SET';
+  document.getElementById('headers-status').className = 'headers-status unset';
+  showToast('Headers cleared.', 'info');
+}
+
+function clearEmails() {
+  document.getElementById('emails-input').value = '';
+  toggleFetchActive();
+}
+
+function showAuthError(msg) {
+  document.getElementById('auth-error-msg').textContent = msg;
+  document.getElementById('auth-error-banner').classList.add('visible');
+}
+
+function dismissAuthError() {
+  document.getElementById('auth-error-banner').classList.remove('visible');
+}
+
+function hasResultBlocks() {
+  return document.getElementById('roles-container').children.length > 0;
+}
+
+function showResultsPanel() {
+  const show = state.rows.length > 0 || hasResultBlocks() || state.fetching;
+  document.getElementById('results-body').style.display = show ? 'flex' : 'none';
+  document.getElementById('empty-state').classList.toggle('hidden', show);
+}
+
+function setLoading(on) {
+  state.fetching = on;
+  document.getElementById('loading-state').classList.toggle('visible', on);
+  document.getElementById('fetch-btn').disabled = on;
+  showResultsPanel();
+}
+
+function updateProgress(pct, msg) {
+  document.getElementById('loading-bar').style.width = pct + '%';
+  document.getElementById('loading-pct').textContent = pct + '%';
+  document.getElementById('loading-msg').textContent = msg || 'Processing...';
+}
+
+function escapeHtml(s) {
+  if (s == null) return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+
+function rolesClass(text) {
+  const t = String(text || '');
+  if (/^HTTP |Timed Out|No Workspaces|error/i.test(t)) return 'error';
+  if (t && t !== 'No Roles') return 'ok';
+  return '';
+}
+
+function userBlockId(user) {
+  return 'user-' + String(user).replace(/[^a-zA-Z0-9]/g, '_');
+}
+
+function getOrCreateUserBlock(user) {
+  const container = document.getElementById('roles-container');
+  const id = userBlockId(user);
+  let block = document.getElementById(id);
+  if (block) return block;
+
+  block = document.createElement('div');
+  block.className = 'user-block';
+  block.id = id;
+  block.dataset.user = user;
+  block.innerHTML = `
+    <div class="user-header">
+      <div class="user-header-left">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+        <span class="user-email">${escapeHtml(user)}</span>
+      </div>
+      <span class="user-ws-count">0 workspace(s)</span>
+    </div>
+    <div class="nested-table-wrap">
+      <table class="nested-table">
+        <thead>
+          <tr>
+            <th>Workspace</th>
+            <th>Customer ID</th>
+            <th>Roles</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  `;
+  container.appendChild(block);
+  return block;
+}
+
+function updateUserBlockCount(block) {
+  const user = block.dataset.user;
+  const userRows = state.rows.filter(r => r.user === user);
+  const wsCount = userRows.filter(r => r.customer_id).length;
+  const label = block.querySelector('.user-ws-count');
+  if (!label) return;
+  if (wsCount === 0) {
+    label.textContent = userRows.length ? 'No workspaces' : '0 workspaces';
+  } else {
+    label.textContent = `${wsCount} workspace${wsCount === 1 ? '' : 's'}`;
+  }
+}
+
+function appendWorkspaceRow(block, row) {
+  const tbody = block.querySelector('.nested-table tbody');
+  const tr = document.createElement('tr');
+  const hasWorkspace = !!(row.workspace || row.customer_id);
+
+  if (hasWorkspace) {
+    tr.innerHTML = `
+      <td class="ws-name">${escapeHtml(row.workspace || '—')}</td>
+      <td class="mono">${escapeHtml(row.customer_id || '—')}</td>
+      <td class="roles-cell ${rolesClass(row.roles)}">${escapeHtml(row.roles)}</td>
+    `;
+  } else {
+    tr.innerHTML = `
+      <td colspan="3" class="roles-cell ${rolesClass(row.roles)}">${escapeHtml(row.roles)}</td>
+    `;
+  }
+
+  tbody.appendChild(tr);
+  updateUserBlockCount(block);
+}
+
+function clearResults() {
+  document.getElementById('roles-container').innerHTML = '';
+  updateStats();
+}
+
+function initUserBlocks(emails) {
+  clearResults();
+  emails.forEach(email => getOrCreateUserBlock(email));
+  showResultsPanel();
+}
+
+function appendRow(row) {
+  const block = getOrCreateUserBlock(row.user);
+  appendWorkspaceRow(block, row);
+}
+
+function updateStats() {
+  const users = new Set(state.rows.map(r => r.user));
+  const workspaces = new Set(state.rows.filter(r => r.customer_id).map(r => r.customer_id));
+  document.getElementById('stat-users').textContent = String(users.size);
+  document.getElementById('stat-workspaces').textContent = String(workspaces.size);
+  document.getElementById('stat-rows').textContent = String(state.rows.length);
+  document.getElementById('hero-row-count').textContent = String(state.rows.length);
+  document.getElementById('stats-row').style.display = state.rows.length ? 'grid' : 'none';
+  document.getElementById('export-btn').style.display = state.rows.length ? '' : 'none';
+  showResultsPanel();
+}
+
+function stopFetch() {
+  if (currentAbortController) { currentAbortController.abort(); currentAbortController = null; }
+  setLoading(false);
+  showToast('Fetch stopped.', 'info');
+}
+
+async function runFetch() {
+  const emails = parseEmails(document.getElementById('emails-input').value);
+  if (!emails.length) { showToast('Please enter at least one email.', 'error'); return; }
+
+  if (currentAbortController) currentAbortController.abort();
+  currentAbortController = new AbortController();
+
+  state.rows = [];
+  initUserBlocks(emails);
+  dismissAuthError();
+  setLoading(true);
+  updateProgress(0, 'Starting...');
+
+  try {
+    const res = await fetch(`${API_BASE}/roles-stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ parsed_headers: state.parsedHeaders, emails }),
+      signal: currentAbortController.signal,
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'API error');
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data:')) continue;
+        const json = line.slice(5).trim();
+        if (!json) continue;
+        try {
+          const msg = JSON.parse(json);
+          if (msg.type === 'progress') {
+            let label = msg.msg || 'Processing...';
+            if (msg.phase === 'workspace') {
+              label = `${msg.user} — ${msg.workspace} (${msg.current || 0}/${msg.total || 0})`;
+            } else if (msg.phase === 'fetch' && msg.user) {
+              label = `Workspaces ${msg.current || 0}/${msg.total || 0}: ${msg.user}`;
+            } else if (msg.phase === 'roles') {
+              label = msg.msg || `Fetching roles (${msg.current || 0}/${msg.total || 0})...`;
+            }
+            updateProgress(msg.pct || 0, label);
+          } else if (msg.type === 'row') {
+            state.rows.push(msg.row);
+            appendRow(msg.row);
+            updateStats();
+          } else if (msg.type === 'auth_error') {
+            showAuthError(msg.message);
+            setLoading(false);
+            return;
+          } else if (msg.type === 'done') {
+            updateProgress(100, 'Complete');
+            showToast(`Fetched ${msg.data.row_count} row(s) for ${msg.data.user_count} user(s).`, 'success');
+          } else if (msg.type === 'error') {
+            throw new Error(msg.error);
+          }
+        } catch (e) {
+          if (e.message && !String(e.message).includes('JSON')) throw e;
+        }
+      }
+    }
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      showToast('Error: ' + err.message + ' — Make sure the Flask server is running.', 'error');
+    }
+  } finally {
+    currentAbortController = null;
+    setLoading(false);
+  }
+}
+
+function exportCSV() {
+  if (!state.rows.length) return;
+  const header = ['User', 'Workspace', 'Customer ID', 'Roles'];
+  const lines = [header.join(',')];
+  for (const row of state.rows) {
+    lines.push([
+      csvCell(row.user),
+      csvCell(row.workspace),
+      csvCell(row.customer_id),
+      csvCell(row.roles),
+    ].join(','));
+  }
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'user_roles.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('CSV exported.', 'success');
+}
+
+function csvCell(value) {
+  const s = String(value == null ? '' : value).replace(/"/g, '""');
+  return `"${s}"`;
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (type || 'info');
+  clearTimeout(showToast._timer);
+  showToast._timer = setTimeout(() => t.classList.remove('show'), 3200);
+}
+</script>
+</body>
+</html>

@@ -28,7 +28,8 @@ def _clean(value: Any) -> str:
     return str(value or "").strip()
 
 _WS_ROLE_ALIASES = {
-    "workspace read only": "Workspace Observers",
+    "workspace read only": "Workspace Observer",
+    "workspace observers": "Workspace Observer",
 }
 
 

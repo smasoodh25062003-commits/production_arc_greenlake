@@ -4,6 +4,8 @@ import requests
 import urllib3
 import json
 
+from platform_activity import actor_from_headers, log_activity
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # ─── Config ───────────────────────────────────────────────────────────────────
@@ -198,6 +200,13 @@ def workspace_stream():
         yield "data: " + json.dumps({"type": "progress", "phase": "status", "pct": 100, "processed": total_workspaces, "total": total_workspaces}) + "\n\n"
         payload = {"type": "done", "data": {"hierarchy": hierarchy, "total": total_workspaces, "standalone_count": sa_count, "msp_count": msp_count, "tenant_count": tenant_count}}
         yield "data: " + json.dumps(payload) + "\n\n"
+        log_activity(
+            actor=actor_from_headers(parsed_headers),
+            tool="User Management",
+            action="fetch_workspaces",
+            detail=f"target={username}, workspaces={total_workspaces}",
+            ip=request.remote_addr,
+        )
 
     return Response(
         generate(),

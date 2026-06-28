@@ -5,6 +5,8 @@ import io
 import json
 from concurrent.futures import ThreadPoolExecutor
 
+from platform_activity import actor_from_headers, log_activity
+
 # ─── Config ───────────────────────────────────────────────────────────────────
 BASE_URL_SERIAL    = "https://aquila-user-api.common.cloud.hpe.com/support-assistant/v1alpha1/activate-devices?limit={limit}&page={page}&serial_number={devices}"
 BASE_URL_MAC       = "https://aquila-user-api.common.cloud.hpe.com/support-assistant/v1alpha1/activate-devices?limit={limit}&page={page}&mac_address={devices}"
@@ -225,6 +227,13 @@ def lookup():
     records     = df.to_dict(orient="records") if not df.empty else []
     total       = len(device_list)
     found       = len(records)
+    log_activity(
+        actor=actor_from_headers(extra_headers),
+        tool="Device Management",
+        action="lookup",
+        detail=f"{lookup_type}, {found}/{total} found",
+        ip=request.remote_addr,
+    )
     return jsonify({"total": total, "found": found, "missing_count": len(missing),
                     "found_pct":   round(found          / total * 100, 1) if total else 0,
                     "missing_pct": round(len(missing)   / total * 100, 1) if total else 0,
@@ -323,6 +332,13 @@ def lookup_stream():
                       "missing": []}
             yield f"data: {json.dumps({'type':'progress','pct':100,'queried':found,'total':found,'found':found,'batch':1,'total_batches':1})}\n\n"
             yield f"data: {json.dumps({'type':'done','data':result})}\n\n"
+            log_activity(
+                actor=actor_from_headers(extra_headers),
+                tool="Device Management",
+                action="lookup_stream",
+                detail=f"workspace, {found} device(s)",
+                ip=request.remote_addr,
+            )
 
         return Response(generate_workspace(), mimetype="text/event-stream",
                         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
@@ -377,6 +393,13 @@ def lookup_stream():
         }
         yield f"data: {json.dumps({'type':'progress','pct':100,'queried':total_devices,'total':total_devices,'found':found,'batch':total_batches,'total_batches':total_batches})}\n\n"
         yield f"data: {json.dumps({'type':'done','data':result})}\n\n"
+        log_activity(
+            actor=actor_from_headers(extra_headers),
+            tool="Device Management",
+            action="lookup_stream",
+            detail=f"{lookup_type}, {total_devices} input(s), {found} found",
+            ip=request.remote_addr,
+        )
 
     return Response(generate(), mimetype="text/event-stream",
                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})

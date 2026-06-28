@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <script src="/greenlake-theme.js"></script>
+  <link rel="stylesheet" href="/greenlake-theme.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>User Activity — Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --hpe-green: #01A982; --hpe-cyan: #0D7AC7; --border: #D5D5D5;
+      --panel: #FFFFFF; --surface: #F7F7F7; --text: #2C2C2C; --muted: #777;
+      --warn: #C63E3E; --font-mono: 'JetBrains Mono', monospace;
+    }
+    body { font-family: Inter, system-ui, sans-serif; background: #fff; color: var(--text); min-height: 100vh; }
+    .header { position: fixed; top: 0; left: 0; right: 0; height: 68px; display: flex; align-items: center; justify-content: space-between; padding: 0 48px; border-bottom: 1px solid var(--border); background: #fff; z-index: 100; }
+    .logo-area { display: flex; align-items: center; gap: 14px; cursor: pointer; text-decoration: none; color: inherit; }
+    .hpe-badge { width: 38px; height: 38px; background: var(--hpe-green); clip-path: polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%); display: flex; align-items: center; justify-content: center; }
+    .hpe-badge svg { color: #fff; }
+    .nav-pill { padding: 6px 14px; border: 1px solid var(--border); border-radius: 4px; font-size: 12px; color: var(--muted); text-decoration: none; }
+    .page { padding: 110px 48px 60px; max-width: 1200px; margin: 0 auto; }
+    .page-title { font-size: 36px; font-weight: 800; letter-spacing: -0.03em; }
+    .page-title em { color: var(--hpe-green); font-style: normal; }
+    .page-subtitle { margin-top: 8px; color: var(--muted); font-size: 15px; line-height: 1.6; }
+    .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 28px 0; }
+    .stat-card { padding: 20px 24px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); }
+    .stat-label { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
+    .stat-val { font-size: 36px; font-weight: 700; margin-top: 6px; color: var(--hpe-cyan); }
+    .gate { text-align: center; padding: 80px 24px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+    .gate h2 { font-size: 20px; margin-bottom: 12px; }
+    .gate p { color: var(--muted); margin-bottom: 24px; line-height: 1.7; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 22px; border-radius: 4px; font-weight: 700; font-size: 13px; cursor: pointer; border: none; text-decoration: none; }
+    .btn-primary { background: var(--hpe-green); color: #fff; }
+    .btn-ghost { background: #fff; border: 1px solid var(--border); color: var(--text); }
+    .results-card { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--panel); }
+    .results-toolbar { padding: 16px 20px; border-bottom: 1px solid var(--border); background: var(--surface); font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--hpe-cyan); text-transform: uppercase; letter-spacing: 0.1em; }
+    .activity-container { padding: 20px; display: flex; flex-direction: column; gap: 16px; max-height: 65vh; overflow-y: auto; }
+    .user-block { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .user-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; background: var(--surface); border-bottom: 1px solid var(--border); cursor: pointer; }
+    .user-header:hover { background: rgba(1,169,130,0.04); }
+    .user-email { font-family: var(--font-mono); font-size: 13px; font-weight: 600; word-break: break-all; }
+    .user-meta { font-family: var(--font-mono); font-size: 10px; color: var(--muted); white-space: nowrap; }
+    .nested-wrap { display: none; overflow-x: auto; }
+    .user-block.open .nested-wrap { display: block; }
+    .nested-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 560px; }
+    .nested-table th { text-align: left; padding: 10px 18px; font-family: var(--font-mono); font-size: 10px; color: var(--muted); text-transform: uppercase; border-bottom: 1px solid var(--border); }
+    .nested-table td { padding: 11px 18px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .nested-table tbody tr:last-child td { border-bottom: none; }
+    .nested-table tbody tr:nth-child(even) { background: rgba(0,0,0,0.02); }
+    .mono { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+    .status-ok { color: var(--hpe-green); font-weight: 600; }
+    .status-err { color: var(--warn); font-weight: 600; }
+    .empty { padding: 60px 20px; text-align: center; color: var(--muted); font-family: var(--font-mono); font-size: 12px; }
+    .toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px 20px; font-size: 12px; opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 999; }
+    .toast.show { opacity: 1; }
+  </style>
+  <link rel="stylesheet" href="/platform-tools-dark.css" />
+</head>
+<body>
+<header class="header">
+  <a class="logo-area" href="/GreenLakeTools.html">
+    <div class="hpe-badge"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L3 7v5c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z"/></svg></div>
+    <div><div style="font-size:9px;letter-spacing:.25em;text-transform:uppercase;color:var(--hpe-green);">Admin</div><div style="font-size:16px;font-weight:700;">User Activity</div></div>
+  </a>
+  <nav style="display:flex;gap:8px;align-items:center;">
+    <span class="nav-pill" id="admin-badge">Checking access…</span>
+    <a href="/GreenLakeTools.html" class="nav-pill">← Home</a>
+    <button type="button" id="themeToggle" class="gl-theme-toggle" aria-label="Toggle theme"><span class="theme-icon theme-icon-light">&#9728;</span><span class="theme-icon theme-icon-dark">&#9790;</span></button>
+  </nav>
+</header>
+
+<div class="page">
+  <h1 class="page-title">User <em>Activity</em></h1>
+  <p class="page-subtitle">Compact audit of Platform Tools usage — who used which module and when. Data is auto-pruned (max 3,000 events, 90 days). Admin login via GreenLake Dashboard required.</p>
+
+  <div id="gate" class="gate" style="display:none;">
+    <h2>Admin access required</h2>
+    <p>Sign in to the GreenLake Dashboard with an <strong>admin</strong> account, then return here.<br>Credentials: use your <code>/gldash/login</code> admin user (e.g. admin / admin).</p>
+    <a href="/gldash/login" class="btn btn-primary">Sign in to Dashboard</a>
+    <button class="btn btn-ghost" style="margin-left:8px;" onclick="checkAccess()">Retry</button>
+  </div>
+
+  <div id="content" style="display:none;">
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-label">Total events</div><div class="stat-val" id="stat-total">0</div></div>
+      <div class="stat-card"><div class="stat-label">Unique users</div><div class="stat-val" id="stat-users">0</div></div>
+      <div class="stat-card"><div class="stat-label">Today</div><div class="stat-val" id="stat-today">0</div></div>
+    </div>
+    <div class="results-card">
+      <div class="results-toolbar">Activity by user · click to expand</div>
+      <div class="activity-container" id="activity-container">
+        <div class="empty">Loading…</div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const API = (window.location.origin || '') + '/api/admin/activity';
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = String(s == null ? '' : s);
+  return d.innerHTML;
+}
+
+function fmtTs(ts) {
+  if (!ts) return '—';
+  try { return new Date(ts).toLocaleString(); } catch (e) { return ts; }
+}
+
+async function checkAccess() {
+  const badge = document.getElementById('admin-badge');
+  try {
+    const res = await fetch(API + '/me', { credentials: 'include' });
+    const data = await res.json();
+    if (data.admin) {
+      badge.textContent = data.display_name || data.username || 'Admin';
+      badge.style.color = 'var(--hpe-green)';
+      document.getElementById('gate').style.display = 'none';
+      document.getElementById('content').style.display = 'block';
+      await loadAll();
+      return;
+    }
+    badge.textContent = data.authenticated ? 'Not admin' : 'Not signed in';
+    document.getElementById('gate').style.display = 'block';
+    document.getElementById('content').style.display = 'none';
+  } catch (e) {
+    badge.textContent = 'Error';
+    document.getElementById('gate').style.display = 'block';
+    showToast('Could not verify admin access.');
+  }
+}
+
+async function loadAll() {
+  const [statsRes, usersRes] = await Promise.all([
+    fetch(API + '/stats', { credentials: 'include' }),
+    fetch(API + '/users', { credentials: 'include' }),
+  ]);
+  if (!statsRes.ok || !usersRes.ok) {
+    showToast('Failed to load activity data.');
+    return;
+  }
+  const stats = await statsRes.json();
+  const users = await usersRes.json();
+  document.getElementById('stat-total').textContent = stats.total || 0;
+  document.getElementById('stat-users').textContent = stats.users || 0;
+  document.getElementById('stat-today').textContent = stats.today || 0;
+  renderUsers(users.users || []);
+}
+
+function renderUsers(users) {
+  const container = document.getElementById('activity-container');
+  if (!users.length) {
+    container.innerHTML = '<div class="empty">No activity recorded yet. Use Platform Tools modules to generate events.</div>';
+    return;
+  }
+  container.innerHTML = '';
+  users.forEach(u => {
+    const block = document.createElement('div');
+    block.className = 'user-block';
+    block.innerHTML = `
+      <div class="user-header" onclick="toggleUser(this)">
+        <span class="user-email">${escapeHtml(u.actor)}</span>
+        <span class="user-meta">${u.action_count} action(s) · last ${fmtTs(u.last_seen)} · ${escapeHtml(u.tools || '')}</span>
+      </div>
+      <div class="nested-wrap"><div class="nested-loading" style="padding:16px;font-family:var(--font-mono);font-size:11px;color:var(--muted);">Click header to load…</div></div>
+    `;
+    block.dataset.actor = u.actor;
+    block.dataset.loaded = '0';
+    container.appendChild(block);
+  });
+}
+
+async function toggleUser(headerEl) {
+  const block = headerEl.closest('.user-block');
+  const actor = block.dataset.actor;
+  block.classList.toggle('open');
+  if (block.dataset.loaded === '1') return;
+  const wrap = block.querySelector('.nested-wrap');
+  wrap.innerHTML = '<div style="padding:16px;font-family:var(--font-mono);font-size:11px;color:var(--muted);">Loading…</div>';
+  try {
+    const res = await fetch(API + '/user/' + encodeURIComponent(actor), { credentials: 'include' });
+    const data = await res.json();
+    const acts = data.activities || [];
+    if (!acts.length) {
+      wrap.innerHTML = '<div class="empty" style="padding:24px;">No detail rows.</div>';
+    } else {
+      let rows = acts.map(a => `
+        <tr>
+          <td class="mono">${fmtTs(a.ts)}</td>
+          <td>${escapeHtml(a.tool)}</td>
+          <td>${escapeHtml(a.action)}</td>
+          <td>${escapeHtml(a.detail || '—')}</td>
+          <td class="${a.status === 'ok' ? 'status-ok' : 'status-err'}">${escapeHtml(a.status)}</td>
+        </tr>
+      `).join('');
+      wrap.innerHTML = `<table class="nested-table"><thead><tr><th>When</th><th>Tool</th><th>Action</th><th>Detail</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>`;
+    }
+    block.dataset.loaded = '1';
+  } catch (e) {
+    wrap.innerHTML = '<div class="empty" style="padding:24px;">Failed to load.</div>';
+  }
+}
+
+checkAccess();
+</script>
+</body>
+</html>

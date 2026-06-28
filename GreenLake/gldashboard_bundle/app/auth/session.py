@@ -29,8 +29,8 @@ def read_session(request: Request) -> Optional[dict]:
 
 
 def _cookie_path() -> str:
-    p = (os.environ.get("GL_PREFIX") or "").rstrip("/") or "/"
-    return p if p.startswith("/") else "/" + p
+    # Site-wide path so Platform Tools (/AdminActivity.html, /api/admin/*) share gldash login.
+    return "/"
 
 
 def set_session(response: Response, user: dict):
