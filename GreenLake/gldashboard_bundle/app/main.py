@@ -13,6 +13,7 @@ from app.auth.session import read_session, set_session, clear_session
 from app.auth.rbac import get_current_user, require_role
 from app.audit.logger import get_recent_logs, get_log_stats
 from app.feedback.logger import get_recent_feedback, get_feedback_stats
+from app.usage.logger import get_recent_usage, get_usage_stats
 from app.monitoring.traffic import log_request, get_traffic_stats
 from app.monitoring.server_health import get_server_health
 
@@ -47,6 +48,7 @@ from app.api.routers.bulk import router as bulk_router
 from app.api.routers.auth import router as auth_router
 from app.api.routers.ccs_manager import router as ccs_router
 from app.api.routers.feedback import router as feedback_router
+from app.api.routers.usage import router as usage_router
 
 app.include_router(devices_router.router, prefix="/api/devices", tags=["devices"])
 app.include_router(reports_router, prefix="/api/reports", tags=["reports"])
@@ -54,6 +56,7 @@ app.include_router(bulk_router, prefix="/api/bulk", tags=["bulk"])
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 app.include_router(ccs_router, prefix="/api/ccs", tags=["ccs-manager"])
 app.include_router(feedback_router, prefix="/api/feedback", tags=["feedback"])
+app.include_router(usage_router, prefix="/api/usage", tags=["usage"])
 from app.api.routers import sites_groups
 
 app.include_router(sites_groups.router, prefix="/api", tags=["sites-groups"])
@@ -393,4 +396,21 @@ async def read_mentor_feedback(request: Request):
     stats = get_feedback_stats()
     return templates.TemplateResponse(
         request, "mentor_feedback.html", _ctx(request, items=items, stats=stats)
+    )
+
+
+@app.get("/mentors/usage", response_class=HTMLResponse)
+async def read_mentor_usage(request: Request):
+    """Admin-only Platform Tools usage log (Mentors module)."""
+    user = _require_login(request)
+    if not user:
+        return RedirectResponse(url=_url("/login"), status_code=302)
+    from app.auth.users import role_gte
+
+    if not role_gte(user.get("role", "viewer"), "admin"):
+        return HTMLResponse("<h2>403 — Admin access required.</h2>", status_code=403)
+    items = get_recent_usage(limit=500)
+    stats = get_usage_stats()
+    return templates.TemplateResponse(
+        request, "mentor_usage.html", _ctx(request, items=items, stats=stats)
     )

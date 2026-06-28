@@ -1,0 +1,113 @@
+{% extends "layout.html" %}
+{% block title %}Usage Log — Mentors{% endblock %}
+{% block page_title %}Platform Tools Usage Log{% endblock %}
+
+{% block head %}
+<style>
+    .usage-header { margin-bottom: 24px; }
+    .usage-header p { color: var(--text-secondary, #666); font-size: 0.9rem; margin-top: 6px; }
+    .stat-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .stat-card { background: var(--panel, #fff); border: 1px solid var(--border, #ddd); border-radius: 12px; padding: 14px 18px; }
+    .stat-card .label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.6; }
+    .stat-card .value { font-size: 1.5rem; font-weight: 700; margin-top: 4px; }
+    .usage-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+    .usage-filters select, .usage-filters button {
+        padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border, #ddd);
+        background: var(--panel, #fff); font-size: 0.85rem; cursor: pointer;
+    }
+    .usage-table-wrap { overflow-x: auto; border: 1px solid var(--border, #ddd); border-radius: 12px; }
+    .usage-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 960px; }
+    .usage-table th, .usage-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border, #eee); vertical-align: top; }
+    .usage-table th { font-size: 0.72rem; text-transform: uppercase; opacity: 0.7; background: var(--surface, #f7f7f7); }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.72rem; font-weight: 600; background: rgba(1,169,130,0.12); color: #01A982; }
+    .detail-cell { max-width: 220px; word-break: break-word; font-size: 0.8rem; opacity: 0.85; }
+    .page-cell { max-width: 200px; word-break: break-all; font-size: 0.75rem; opacity: 0.7; }
+    .top-users { margin-bottom: 24px; }
+    .top-users h3 { font-size: 0.85rem; margin-bottom: 10px; opacity: 0.8; }
+    .top-users-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .top-user-chip { padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border, #ddd); font-size: 0.8rem; background: var(--surface, #f7f7f7); }
+    .no-rows { text-align: center; padding: 48px; opacity: 0.5; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="usage-header">
+    <p>Who used Platform Tools and how — logged from now on (max {{ stats.max_rows or 5000 }} events, oldest pruned). Admin only.</p>
+</div>
+
+<div class="stat-cards">
+    <div class="stat-card"><div class="label">Total events</div><div class="value">{{ stats.total or 0 }}</div></div>
+    <div class="stat-card"><div class="label">Today</div><div class="value">{{ stats.today or 0 }}</div></div>
+    <div class="stat-card"><div class="label">Unique today</div><div class="value">{{ stats.unique_today or 0 }}</div></div>
+</div>
+
+{% if stats.top_users %}
+<div class="top-users">
+    <h3>Most active visitors</h3>
+    <div class="top-users-list">
+        {% for u in stats.top_users %}
+        <span class="top-user-chip">{{ u.label }} · {{ u.count }} event(s)</span>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="usage-filters">
+    <select id="filterTool" onchange="filterTable()">
+        <option value="">All tools</option>
+        {% for tool, count in (stats.by_tool or {}).items() %}
+        <option value="{{ tool }}">{{ tool }} ({{ count }})</option>
+        {% endfor %}
+    </select>
+    <select id="filterAction" onchange="filterTable()">
+        <option value="">All actions</option>
+        {% for act, count in (stats.by_action or {}).items() %}
+        <option value="{{ act }}">{{ act }} ({{ count }})</option>
+        {% endfor %}
+    </select>
+    <button type="button" onclick="location.reload()">Refresh</button>
+    <a href="/GreenLakeTools.html" style="margin-left:auto;font-size:0.85rem;">← Platform Tools</a>
+</div>
+
+<div class="usage-table-wrap">
+    <table class="usage-table" id="usageTable">
+        <thead>
+            <tr>
+                <th>#</th><th>When</th><th>Who</th><th>Tool</th><th>Action</th><th>Detail</th><th>Page</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in items %}
+            <tr data-tool="{{ row.tool }}" data-action="{{ row.action }}">
+                <td>{{ row.id }}</td>
+                <td>{{ row.ts[:19] if row.ts else '' }}</td>
+                <td>
+                    {% if row.user_label %}{{ row.user_label }}<br>{% endif %}
+                    {% if row.session_user %}<small>{{ row.session_user }}</small><br>{% endif %}
+                    <small style="opacity:0.5">{{ row.visitor_id[:12] }}…</small>
+                </td>
+                <td><span class="pill">{{ row.tool }}</span></td>
+                <td>{{ row.action }}</td>
+                <td class="detail-cell">{{ row.detail or '—' }}</td>
+                <td class="page-cell">{{ row.page or '—' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="no-rows">No usage logged yet. Events appear when someone opens a Platform Tool page.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+function filterTable() {
+    var tool = document.getElementById('filterTool').value;
+    var action = document.getElementById('filterAction').value;
+    document.querySelectorAll('#usageTable tbody tr[data-tool]').forEach(function (tr) {
+        var ok = true;
+        if (tool && tr.dataset.tool !== tool) ok = false;
+        if (action && tr.dataset.action !== action) ok = false;
+        tr.style.display = ok ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}

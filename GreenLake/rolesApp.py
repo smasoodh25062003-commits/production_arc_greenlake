@@ -10,8 +10,6 @@ import urllib3
 from flask import Blueprint, Response, jsonify, request
 from requests.adapters import HTTPAdapter
 
-from platform_activity import actor_from_headers, log_activity
-
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 AQUILA_BASE = "https://aquila-user-api.common.cloud.hpe.com"
@@ -201,13 +199,6 @@ def roles_stream():
 
         yield f"data: {json.dumps({'type': 'progress', 'pct': 100, 'phase': 'done', 'current': total_users, 'total': total_users})}\n\n"
         yield f"data: {json.dumps({'type': 'done', 'data': {'rows': rows, 'user_count': total_users, 'row_count': len(rows)}})}\n\n"
-        log_activity(
-            actor=actor_from_headers(parsed_headers),
-            tool="User Roles",
-            action="fetch_roles",
-            detail=f"{total_users} user(s), {len(rows)} row(s)",
-            ip=request.remote_addr,
-        )
 
     return Response(
         generate(),

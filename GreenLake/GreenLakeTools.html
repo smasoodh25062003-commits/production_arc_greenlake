@@ -4,6 +4,7 @@
   <script src="/greenlake-theme.js"></script>
   <link rel="stylesheet" href="/greenlake-theme.css" />
   <script src="/greenlake-feedback.js" defer></script>
+  <script src="/greenlake-usage.js" defer></script>
 
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -1839,38 +1840,6 @@
       </div>
     </div>
 
-    <div class="tool-card card-mentor" id="tile-admin-activity" onclick="window.location.href='/AdminActivity.html'">
-      <div class="card-glow"></div>
-      <div class="card-top-bar"></div>
-      <div class="card-body">
-        <div class="card-header-row">
-          <div class="card-icon-wrap">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-            </svg>
-          </div>
-          <div class="card-badge badge-mentor"><div class="badge-dot"></div>Admin</div>
-        </div>
-        <div class="card-module-label">Admin Module 01</div>
-        <div class="card-title">User Activity</div>
-        <div class="card-desc">See who used Platform Tools and what they did. Lightweight log (auto-pruned). Requires admin login at <code>/gldash/login</code>.</div>
-        <div class="card-features">
-          <span class="feature-tag">Admin only</span>
-          <span class="feature-tag">Audit trail</span>
-          <span class="feature-tag">By user</span>
-        </div>
-        <div class="card-footer">
-          <div class="card-meta">/AdminActivity.html</div>
-          <div class="card-arrow">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <div class="tool-card card-mentor card-cyan" id="tile-feedback-inbox" style="display:none;" onclick="window.location.href='/gldash/mentors/feedback'">
       <div class="card-glow"></div>
       <div class="card-top-bar"></div>
@@ -1892,6 +1861,36 @@
         </div>
         <div class="card-footer">
           <div class="card-meta">/gldash/mentors/feedback</div>
+          <div class="card-arrow">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tool-card card-mentor" id="tile-usage-log" style="display:none;" onclick="window.location.href='/gldash/mentors/usage'">
+      <div class="card-glow"></div>
+      <div class="card-top-bar"></div>
+      <div class="card-body">
+        <div class="card-header-row">
+          <div class="card-icon-wrap">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M3 3v18h18"/>
+              <path d="M7 16l4-4 4 4 5-6"/>
+            </svg>
+          </div>
+          <div class="card-badge badge-mentor"><div class="badge-dot"></div>Admin</div>
+        </div>
+        <div class="card-module-label">Mentor Module 03</div>
+        <div class="card-title">Usage Log</div>
+        <div class="card-desc">See who opened which Platform Tools and what actions they ran — logged from now on (max 5,000 events). Requires admin login at <code>/gldash/login</code>.</div>
+        <div class="card-features">
+          <span class="feature-tag">Admin only</span>
+          <span class="feature-tag">Per tool</span>
+          <span class="feature-tag">Lightweight</span>
+        </div>
+        <div class="card-footer">
+          <div class="card-meta">/gldash/mentors/usage</div>
           <div class="card-arrow">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
           </div>

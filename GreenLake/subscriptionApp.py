@@ -5,8 +5,6 @@ import requests
 import json
 import re
 
-from platform_activity import actor_from_headers, log_activity
-
 PARALLEL_WORKERS = 20  # parallel key lookups in subscription key mode
 
 # ─── Config ───────────────────────────────────────────────────────────────────
@@ -182,13 +180,6 @@ def subscription_stream():
             }
             yield f"data: {json.dumps({'type':'progress','pct':100,'queried':total,'total':total})}\n\n"
             yield f"data: {json.dumps({'type':'done','data':result})}\n\n"
-            log_activity(
-                actor=actor_from_headers(extra_headers),
-                tool="Subscription Management",
-                action="lookup_stream",
-                detail=f"workspace, {total} subscription(s)",
-                ip=request.remote_addr,
-            )
 
         return Response(generate_workspace(), mimetype="text/event-stream",
                         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
@@ -276,13 +267,6 @@ def subscription_stream():
         }
         yield f"data: {json.dumps({'type':'progress','pct':100,'queried':total_keys,'total':total_keys})}\n\n"
         yield f"data: {json.dumps({'type':'done','data':result})}\n\n"
-        log_activity(
-            actor=actor_from_headers(extra_headers),
-            tool="Subscription Management",
-            action="lookup_stream",
-            detail=f"keys, {len(deduped)} found / {total_keys} queried",
-            ip=request.remote_addr,
-        )
 
     return Response(generate(), mimetype="text/event-stream",
                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
