@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <script src="/greenlake-theme.js"></script>
+  <link rel="stylesheet" href="/greenlake-theme.css" />
+  <script src="/greenlake-feedback.js" defer></script>
+  <script src="/greenlake-usage.js" defer></script>
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PDF Serial Checker — HPE GreenLake</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --hpe-green: #01A982; --hpe-cyan: #0D7AC7; --hpe-purple: #6A30C7;
+      --black: #FFFFFF; --surface: #F7F7F7; --panel: #FFFFFF;
+      --border: #D5D5D5; --border-bright: #B0B0B0;
+      --text: #2C2C2C; --text-secondary: #555555; --muted: #777777; --warn: #C63E3E;
+      --font-mono: 'Inter', 'JetBrains Mono', monospace;
+      --font-sans: 'Inter', system-ui, sans-serif;
+    }
+    body { background: var(--black); color: var(--text); font-family: var(--font-sans); font-weight: 500; min-height: 100vh; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes statusPulse { 0%,100%{box-shadow:0 0 0 0 rgba(1,169,130,.7);}50%{box-shadow:0 0 0 4px rgba(1,169,130,0);} }
+
+    .header { position: fixed; top:0; left:0; right:0; z-index: 100; height: 68px; display: flex; align-items: center; justify-content: space-between; padding: 0 48px; }
+    .header::before { content:''; position:absolute; inset:0; background: rgba(255,255,255,.88); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); z-index:-1; }
+    .logo-area { display:flex;align-items:center;gap:14px;text-decoration:none;cursor:pointer; }
+    .hpe-badge { width:38px;height:38px;background:var(--hpe-green);display:flex;align-items:center;justify-content:center;clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%); }
+    .hpe-badge svg { color:#FFFFFF; }
+    .logo-eyebrow { font-family:var(--font-mono);font-size:9px;letter-spacing:.25em;text-transform:uppercase;color:var(--hpe-green); }
+    .logo-name { font-size:16px;font-weight:700;color:var(--text); }
+    .logo-name em { color:var(--hpe-green);font-style:normal; }
+    .header-nav { display:flex;align-items:center;gap:8px; }
+    .nav-pill { display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:100px;border:1px solid var(--border);font-family:var(--font-mono);font-size:10px;color:var(--muted);background:transparent;text-decoration:none; }
+    .nav-pill:hover { border-color:var(--hpe-green);color:var(--hpe-green); }
+
+    .page { position:relative;z-index:1;padding:110px 48px 80px; }
+    .page-wrap { max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:24px; }
+    .page-hero { display:flex;align-items:flex-end;justify-content:space-between;padding-bottom:24px;border-bottom:1px solid var(--border);gap:24px;flex-wrap:wrap; }
+    .page-overline { font-family:var(--font-mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--hpe-green);margin-bottom:12px;display:flex;align-items:center;gap:10px; }
+    .page-overline::before { content:'';width:24px;height:1px;background:var(--hpe-green); }
+    .page-title { font-size:clamp(32px,4vw,48px);font-weight:900;letter-spacing:-.04em;line-height:1;color:var(--text); }
+    .page-title em { font-style:normal;color:var(--hpe-green); }
+    .page-subtitle { margin-top:10px;font-size:15px;color:var(--text-secondary);line-height:1.7;max-width:640px; }
+    .hero-stat { font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-align:right; }
+    .hero-stat span { display:block;font-size:44px;font-weight:700;color:var(--hpe-cyan);line-height:1.15;letter-spacing:-.02em; }
+
+    .input-grid { display:grid;grid-template-columns:1fr 1fr;gap:20px; }
+    @media (max-width: 900px) { .input-grid { grid-template-columns: 1fr; } }
+
+    .input-card { background:var(--panel);border:1px solid var(--border);border-radius:20px;overflow:hidden; }
+    .input-body { padding:24px; }
+    .input-label { font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--text-secondary);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px; }
+    .input-label-dot { width:6px;height:6px;border-radius:50%;background:var(--hpe-green);animation:statusPulse 2s ease-in-out infinite; }
+    .serials-textarea { width:100%;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-family:var(--font-mono);font-size:12px;color:var(--text);outline:none;resize:vertical;min-height:220px;line-height:1.8; }
+    .file-drop { border:2px dashed var(--border);border-radius:12px;padding:28px 20px;text-align:center;background:var(--surface);cursor:pointer;transition:border-color .2s,background .2s; }
+    .file-drop:hover, .file-drop.dragover { border-color:var(--hpe-green);background:rgba(1,169,130,.04); }
+    .file-drop-title { font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px; }
+    .file-drop-hint { font-family:var(--font-mono);font-size:11px;color:var(--muted); }
+    .file-list { margin-top:14px;display:flex;flex-direction:column;gap:8px; }
+    .file-item { display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--panel);font-family:var(--font-mono);font-size:11px; }
+    .file-item button { border:none;background:transparent;color:var(--warn);cursor:pointer;font-size:11px;font-family:var(--font-mono); }
+
+    .actions-row { display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap; }
+    .input-hint { font-family:var(--font-mono);font-size:10px;color:var(--muted); }
+    .btn-group { display:flex;gap:8px;align-items:center;flex-wrap:wrap; }
+    .btn { display:inline-flex;align-items:center;gap:7px;padding:10px 20px;border:none;border-radius:8px;font-size:12px;font-family:var(--font-mono);font-weight:600;cursor:pointer;white-space:nowrap; }
+    .btn-primary { background:var(--hpe-green);color:#fff; }
+    .btn-primary:hover:not(:disabled) { background:#00755A; }
+    .btn-primary:disabled { opacity:.4;cursor:not-allowed; }
+    .btn-ghost { background:transparent;color:var(--muted);border:1px solid var(--border); }
+
+    .stats-row { display:grid;grid-template-columns:repeat(3,1fr);gap:16px; }
+    .stat-card { padding:20px 24px;border-radius:16px;border:1px solid var(--border);background:var(--panel); }
+    .stat-label { font-family:var(--font-mono);font-size:10px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;margin-bottom:8px; }
+    .stat-val { font-family:var(--font-mono);font-size:36px;font-weight:700;line-height:1; }
+    .stat-card.total .stat-val { color:var(--hpe-cyan); }
+    .stat-card.found .stat-val { color:var(--hpe-green); }
+    .stat-card.missing .stat-val { color:var(--warn); }
+
+    .results-card { background:var(--panel);border:1px solid var(--border);border-radius:20px;overflow:hidden; }
+    .results-toolbar { display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid var(--border);background:var(--surface); }
+    .results-title { font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--hpe-cyan);letter-spacing:.1em;text-transform:uppercase; }
+    .results-body { display:grid;grid-template-columns:1fr 1fr;gap:0;min-height:320px; }
+    @media (max-width: 900px) { .results-body { grid-template-columns: 1fr; } }
+    .results-panel { padding:20px;border-right:1px solid var(--border); }
+    .results-panel:last-child { border-right:none;border-top:none; }
+    @media (max-width: 900px) { .results-panel { border-right:none;border-bottom:1px solid var(--border); } .results-panel:last-child { border-bottom:none; } }
+    .panel-heading { font-family:var(--font-mono);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px; }
+    .panel-heading.found { color:var(--hpe-green); }
+    .panel-heading.missing { color:var(--warn); }
+    .serial-block { border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:var(--surface); }
+    .serial-name { font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px; }
+    .serial-loc { font-family:var(--font-mono);font-size:11px;color:var(--muted);line-height:1.6; }
+    .missing-list { display:flex;flex-wrap:wrap;gap:8px; }
+    .missing-chip { font-family:var(--font-mono);font-size:11px;padding:6px 10px;border-radius:100px;border:1px solid rgba(198,62,62,.35);color:var(--warn);background:rgba(198,62,62,.06); }
+    .empty-state { padding:48px 24px;text-align:center;color:var(--muted);font-family:var(--font-mono);font-size:12px;line-height:1.8; }
+    .error-banner { display:none;margin:0 20px 20px;padding:12px 14px;border-radius:10px;border:1px solid rgba(198,62,62,.35);background:rgba(198,62,62,.06);color:var(--warn);font-family:var(--font-mono);font-size:11px;line-height:1.6; }
+    .error-banner.visible { display:block; }
+    .loading-row { display:none;align-items:center;gap:10px;padding:16px 24px;border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:12px;color:var(--muted); }
+    .loading-row.visible { display:flex; }
+    .spinner { width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--hpe-cyan);border-radius:50%;animation:spin .7s linear infinite; }
+    .toast { position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--panel);border-radius:12px;padding:12px 22px;font-size:12px;font-family:var(--font-mono);border:1px solid var(--border-bright);z-index:9999;opacity:0;pointer-events:none;transition:all .3s; }
+    .toast.show { opacity:1;transform:translateX(-50%) translateY(0); }
+    .toast.error { border-color:rgba(255,107,107,.4);color:var(--warn); }
+    .toast.success { border-color:rgba(1,169,130,.4);color:var(--hpe-green); }
+  </style>
+  <link rel="stylesheet" href="/platform-tools-dark.css" />
+</head>
+<body>
+
+<header class="header">
+  <div class="logo-area" onclick="window.location.href='/GreenLakeTools.html'">
+    <div class="hpe-badge"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L3 7v5c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z"/></svg></div>
+    <div>
+      <div class="logo-eyebrow">HPE GreenLake</div>
+      <div class="logo-name">Platform <em>Tools</em></div>
+    </div>
+  </div>
+  <nav class="header-nav">
+    <div class="nav-pill">Module 07</div>
+    <a href="/GreenLakeTools.html" class="nav-pill">← Home</a>
+    <button type="button" id="themeToggle" class="gl-theme-toggle" aria-label="Toggle theme" title="Toggle light/dark mode">
+      <span class="theme-icon theme-icon-light" aria-hidden="true">&#9728;</span>
+      <span class="theme-icon theme-icon-dark" aria-hidden="true">&#9790;</span>
+    </button>
+  </nav>
+</header>
+
+<div class="page">
+  <div class="page-wrap">
+    <div class="page-hero">
+      <div>
+        <div class="page-overline">Module 07</div>
+        <h1 class="page-title">PDF <em>Serial Checker</em></h1>
+        <p class="page-subtitle">Upload invoice or packing-list PDFs, paste your device serial numbers, and see which ones appear in the documents — with page references when available.</p>
+      </div>
+      <div class="hero-stat">
+        Found
+        <span id="hero-found">—</span>
+      </div>
+    </div>
+
+    <div class="input-grid">
+      <div class="input-card">
+        <div class="input-body">
+          <div class="input-label">
+            <div class="input-label-dot"></div>
+            <span>Device serial numbers</span>
+          </div>
+          <textarea class="serials-textarea" id="serials-input" placeholder="CN12345678&#10;CN87654321&#10;CN11223344"></textarea>
+        </div>
+      </div>
+
+      <div class="input-card">
+        <div class="input-body">
+          <div class="input-label">
+            <div class="input-label-dot"></div>
+            <span>PDF / TXT files</span>
+          </div>
+          <div class="file-drop" id="file-drop">
+            <div class="file-drop-title">Drop files here or click to browse</div>
+            <div class="file-drop-hint">PDF or TXT · multiple files supported</div>
+          </div>
+          <input type="file" id="file-input" accept=".pdf,.txt,application/pdf,text/plain" multiple hidden />
+          <div class="file-list" id="file-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions-row">
+      <span class="input-hint">Separate serials with spaces, commas, or new lines · <span style="color:var(--hpe-cyan)">Ctrl+Enter</span> to run</span>
+      <div class="btn-group">
+        <button class="btn btn-ghost" type="button" onclick="clearAll()">Clear</button>
+        <button class="btn btn-primary" id="run-btn" type="button" onclick="runCheck()">Run Check</button>
+      </div>
+    </div>
+
+    <div class="stats-row" id="stats-row" style="display:none">
+      <div class="stat-card total">
+        <div class="stat-label">Total Serials</div>
+        <div class="stat-val" id="stat-total">0</div>
+      </div>
+      <div class="stat-card found">
+        <div class="stat-label">Found</div>
+        <div class="stat-val" id="stat-found">0</div>
+      </div>
+      <div class="stat-card missing">
+        <div class="stat-label">Not Found</div>
+        <div class="stat-val" id="stat-missing">0</div>
+      </div>
+    </div>
+
+    <div class="results-card">
+      <div class="results-toolbar">
+        <span class="results-title">Check Results</span>
+      </div>
+      <div class="loading-row" id="loading-row">
+        <div class="spinner"></div>
+        <span>Scanning uploaded files...</span>
+      </div>
+      <div class="error-banner" id="error-banner"></div>
+      <div class="empty-state" id="empty-state">
+        Upload your PDFs and paste serial numbers, then click <strong>Run Check</strong>.
+        <br />Results are shown here only — nothing is saved to disk.
+      </div>
+      <div class="results-body" id="results-body" style="display:none">
+        <div class="results-panel">
+          <div class="panel-heading found">Found</div>
+          <div id="found-panel"></div>
+        </div>
+        <div class="results-panel">
+          <div class="panel-heading missing">Not Found</div>
+          <div id="missing-panel"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API_BASE = (window.location.origin || 'http://localhost:5000') + '/api';
+let selectedFiles = [];
+
+const fileInput = document.getElementById('file-input');
+const fileDrop = document.getElementById('file-drop');
+const fileList = document.getElementById('file-list');
+
+fileDrop.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => addFiles(fileInput.files));
+fileDrop.addEventListener('dragover', (e) => { e.preventDefault(); fileDrop.classList.add('dragover'); });
+fileDrop.addEventListener('dragleave', () => fileDrop.classList.remove('dragover'));
+fileDrop.addEventListener('drop', (e) => {
+  e.preventDefault();
+  fileDrop.classList.remove('dragover');
+  addFiles(e.dataTransfer.files);
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey && e.key === 'Enter') runCheck();
+});
+
+function addFiles(fileListLike) {
+  for (const file of fileListLike) {
+    if (!selectedFiles.some((f) => f.name === file.name && f.size === file.size)) {
+      selectedFiles.push(file);
+    }
+  }
+  renderFileList();
+  fileInput.value = '';
+}
+
+function removeFile(index) {
+  selectedFiles.splice(index, 1);
+  renderFileList();
+}
+
+function renderFileList() {
+  fileList.innerHTML = selectedFiles.map((file, index) => `
+    <div class="file-item">
+      <span>${escapeHtml(file.name)}</span>
+      <button type="button" onclick="removeFile(${index})">Remove</button>
+    </div>
+  `).join('');
+}
+
+function clearAll() {
+  selectedFiles = [];
+  renderFileList();
+  document.getElementById('serials-input').value = '';
+  document.getElementById('empty-state').style.display = '';
+  document.getElementById('results-body').style.display = 'none';
+  document.getElementById('stats-row').style.display = 'none';
+  document.getElementById('error-banner').classList.remove('visible');
+  document.getElementById('hero-found').textContent = '—';
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function showToast(msg, kind = 'success') {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.className = 'toast show ' + kind;
+  clearTimeout(showToast._timer);
+  showToast._timer = setTimeout(() => toast.classList.remove('show'), 3200);
+}
+
+function renderResults(data) {
+  const foundPanel = document.getElementById('found-panel');
+  const missingPanel = document.getElementById('missing-panel');
+  const foundEntries = Object.entries(data.found || {});
+
+  if (foundEntries.length) {
+    foundPanel.innerHTML = foundEntries.map(([serial, locations]) => `
+      <div class="serial-block">
+        <div class="serial-name">${escapeHtml(serial)}</div>
+        ${locations.map((loc) => `<div class="serial-loc">${escapeHtml(loc.location)}</div>`).join('')}
+      </div>
+    `).join('');
+  } else {
+    foundPanel.innerHTML = '<div class="empty-state" style="padding:24px 0">No serials matched the uploaded files.</div>';
+  }
+
+  if ((data.not_found || []).length) {
+    missingPanel.innerHTML = `<div class="missing-list">${data.not_found.map((serial) => `<span class="missing-chip">${escapeHtml(serial)}</span>`).join('')}</div>`;
+  } else {
+    missingPanel.innerHTML = '<div class="empty-state" style="padding:24px 0">All serials were found.</div>';
+  }
+
+  const summary = data.summary || {};
+  document.getElementById('stat-total').textContent = String(summary.total || 0);
+  document.getElementById('stat-found').textContent = String(summary.found_count || 0);
+  document.getElementById('stat-missing').textContent = String(summary.not_found_count || 0);
+  document.getElementById('hero-found').textContent = String(summary.found_count || 0);
+  document.getElementById('stats-row').style.display = 'grid';
+
+  const errorBanner = document.getElementById('error-banner');
+  if ((data.errors || []).length) {
+    errorBanner.textContent = data.errors.join(' · ');
+    errorBanner.classList.add('visible');
+  } else {
+    errorBanner.classList.remove('visible');
+  }
+
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('results-body').style.display = 'grid';
+}
+
+async function runCheck() {
+  const serials = document.getElementById('serials-input').value.trim();
+  if (!selectedFiles.length) {
+    showToast('Please upload at least one PDF or TXT file.', 'error');
+    return;
+  }
+  if (!serials) {
+    showToast('Please enter at least one serial number.', 'error');
+    return;
+  }
+
+  const runBtn = document.getElementById('run-btn');
+  const loadingRow = document.getElementById('loading-row');
+  runBtn.disabled = true;
+  loadingRow.classList.add('visible');
+
+  const formData = new FormData();
+  formData.append('serials', serials);
+  selectedFiles.forEach((file) => formData.append('files', file));
+
+  try {
+    const res = await fetch(`${API_BASE}/serial-check`, { method: 'POST', body: formData });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Check failed');
+
+    renderResults(data);
+    showToast(`Found ${data.summary.found_count} of ${data.summary.total} serial(s).`, 'success');
+  } catch (err) {
+    showToast(err.message || 'Check failed', 'error');
+  } finally {
+    runBtn.disabled = false;
+    loadingRow.classList.remove('visible');
+  }
+}
+</script>
+</body>
+</html>

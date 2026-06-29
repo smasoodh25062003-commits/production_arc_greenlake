@@ -1800,6 +1800,40 @@
       </div>
     </div>
 
+    <!-- Card 7: PDF Serial Checker -->
+    <div class="tool-card card-cyan" id="tile-serial-checker" onclick="openTool('serial-checker')">
+      <div class="card-glow"></div>
+      <div class="card-top-bar"></div>
+      <div class="card-body">
+        <div class="card-header-row">
+          <div class="card-icon-wrap">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <path d="M14 2v6h6M9 15l2 2 4-4"/>
+            </svg>
+          </div>
+          <div class="card-badge badge-active">
+            <div class="badge-dot"></div>
+            Active
+          </div>
+        </div>
+        <div class="card-module-label">Module 07</div>
+        <div class="card-title">PDF Serial Checker</div>
+        <div class="card-desc">Upload invoice or packing-list PDFs, paste device serial numbers, and see which ones appear in the documents — with page references.</div>
+        <div class="card-features">
+          <span class="feature-tag">PDF Upload</span>
+          <span class="feature-tag">Bulk Serials</span>
+          <span class="feature-tag">Page Lookup</span>
+        </div>
+        <div class="card-footer">
+          <div class="card-meta">internal / Serial Checker</div>
+          <div class="card-arrow">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- Mentors Tools Grid -->
@@ -2094,6 +2128,8 @@
       window.location.href = '/UserManagement.html';
     } else if (tool === 'roles') {
       window.location.href = '/UserRoles.html';
+    } else if (tool === 'serial-checker') {
+      window.location.href = '/SerialChecker.html';
     } else {
       showToast('This module is coming soon — stay tuned!');
     }
