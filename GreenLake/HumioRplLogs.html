@@ -342,10 +342,15 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = await res.json().catch(() => ({}));
+      const rawText = await res.text();
+      let data = {};
+      try { data = rawText ? JSON.parse(rawText) : {}; } catch (_) {
+        data = { error: `Server returned HTTP ${res.status} (non-JSON)`, detail: rawText.slice(0, 400) };
+      }
       if (!res.ok) {
-        const msg = data.detail ? `${data.error || "Query failed"} ${data.detail}` : (data.error || "Query failed");
-        $("errorBanner").textContent = msg;
+        const parts = [data.error || `Query failed (HTTP ${res.status})`];
+        if (data.detail) parts.push(data.detail);
+        $("errorBanner").textContent = parts.join(" — ");
         $("errorBanner").classList.add("visible");
         showToast("Humio query failed", "error");
         return;

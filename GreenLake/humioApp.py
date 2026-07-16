@@ -1,6 +1,7 @@
 """Humio / LogScale RPL & embargo status lookup for CCS portal logs."""
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -8,13 +9,18 @@ import requests
 from dotenv import load_dotenv
 from flask import Blueprint, jsonify, request
 
-load_dotenv(Path(__file__).resolve().parent / ".env")
+_ENV_PATH = Path(__file__).resolve().parent / ".env"
 
 humio_bp = Blueprint("humio", __name__)
 
 DEFAULT_BASE_URL = "https://aquila-us-east-2.cloudops.common.cloud.hpe.com/logs"
 DEFAULT_REPOSITORY = "ccsportal"
 ALLOWED_STARTS = frozenset({"1h", "6h", "12h", "1d", "3d", "7d", "30d"})
+
+
+def _reload_env() -> None:
+    """Load .env on each request so VM edits apply after save (still restart if using systemd Environment=)."""
+    load_dotenv(_ENV_PATH, override=True)
 
 
 def _build_query(customer_id: str) -> str:
@@ -30,14 +36,57 @@ def _build_query(customer_id: str) -> str:
 
 
 def _resolve_token(body: dict) -> str:
-    token = (body.get("api_token") or "").strip()
+    token = (body.get("api_token") or "").strip().strip('"').strip("'")
     if token:
         return token
-    return (os.environ.get("HUMIO_API_TOKEN") or "").strip()
+    return (os.environ.get("HUMIO_API_TOKEN") or "").strip().strip('"').strip("'")
+
+
+def _parse_events(response: requests.Response) -> list:
+    text = (response.text or "").strip()
+    if not text:
+        return []
+
+    try:
+        data = response.json()
+        if isinstance(data, list):
+            return data
+        if isinstance(data, dict):
+            # Some gateways wrap results
+            for key in ("events", "data", "results"):
+                if isinstance(data.get(key), list):
+                    return data[key]
+            raise ValueError(f"Unexpected JSON object keys: {list(data.keys())[:12]}")
+    except ValueError:
+        pass
+
+    # NDJSON fallback (one JSON object per line)
+    events: list = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        events.append(json.loads(line))
+    return events
+
+
+@humio_bp.route("/api/humio/health", methods=["GET"])
+def humio_health():
+    _reload_env()
+    token = (os.environ.get("HUMIO_API_TOKEN") or "").strip()
+    return jsonify({
+        "ok": True,
+        "token_configured": bool(token),
+        "env_file_exists": _ENV_PATH.is_file(),
+        "env_file": str(_ENV_PATH),
+        "base_url": (os.environ.get("HUMIO_BASE_URL") or DEFAULT_BASE_URL),
+        "repository": os.environ.get("HUMIO_REPOSITORY") or DEFAULT_REPOSITORY,
+    })
 
 
 @humio_bp.route("/api/humio/rpl-query", methods=["POST"])
 def humio_rpl_query():
+    _reload_env()
     body = request.get_json(silent=True) or {}
     customer_id = (body.get("customer_id") or "").strip()
     if not customer_id:
@@ -45,12 +94,18 @@ def humio_rpl_query():
 
     start = (body.get("start") or "1d").strip()
     if start not in ALLOWED_STARTS:
-        return jsonify({"error": f"Invalid time range. Use one of: {', '.join(sorted(ALLOWED_STARTS))}"}), 400
+        return jsonify({
+            "error": f"Invalid time range. Use one of: {', '.join(sorted(ALLOWED_STARTS))}"
+        }), 400
 
     token = _resolve_token(body)
     if not token:
         return jsonify({
-            "error": "Humio API token not configured. Set HUMIO_API_TOKEN in .env or paste a token in the form."
+            "error": (
+                "Humio API token not configured on this server. "
+                f"Create {_ENV_PATH} with HUMIO_API_TOKEN=... then retry "
+                "(or paste a token in the form)."
+            )
         }), 400
 
     base_url = (os.environ.get("HUMIO_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
@@ -70,6 +125,16 @@ def humio_rpl_query():
 
     try:
         response = requests.post(endpoint, headers=headers, json=payload, timeout=120)
+    except requests.exceptions.SSLError as exc:
+        return jsonify({
+            "error": "SSL error talking to Humio (common on VMs with custom proxies).",
+            "detail": str(exc),
+        }), 502
+    except requests.exceptions.ConnectionError as exc:
+        return jsonify({
+            "error": "Cannot reach Humio from this VM (network/firewall/DNS).",
+            "detail": str(exc),
+        }), 502
     except requests.RequestException as exc:
         return jsonify({"error": f"Failed to reach Humio: {exc}"}), 502
 
@@ -79,13 +144,17 @@ def humio_rpl_query():
             detail = detail[:800] + "…"
         return jsonify({
             "error": f"Humio query failed (HTTP {response.status_code}).",
-            "detail": detail,
+            "detail": detail or "(empty body)",
         }), 502
 
     try:
-        events = response.json()
-    except ValueError:
-        return jsonify({"error": "Humio returned a non-JSON response."}), 502
+        events = _parse_events(response)
+    except Exception as exc:
+        snippet = (response.text or "")[:300]
+        return jsonify({
+            "error": f"Could not parse Humio response: {exc}",
+            "detail": snippet,
+        }), 502
 
     if not isinstance(events, list):
         return jsonify({"error": "Unexpected Humio response shape (expected a list of events)."}), 502
