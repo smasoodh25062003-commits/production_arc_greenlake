@@ -1834,6 +1834,43 @@
       </div>
     </div>
 
+    <!-- Card 8: Humio RPL Logs -->
+    <div class="tool-card" id="tile-humio-rpl" onclick="openTool('humio-rpl')">
+      <div class="card-glow"></div>
+      <div class="card-top-bar"></div>
+      <div class="card-body">
+        <div class="card-header-row">
+          <div class="card-icon-wrap">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M4 19h16"/>
+              <path d="M6 16V9"/>
+              <path d="M10 16V5"/>
+              <path d="M14 16v-6"/>
+              <path d="M18 16V8"/>
+            </svg>
+          </div>
+          <div class="card-badge badge-active">
+            <div class="badge-dot"></div>
+            Active
+          </div>
+        </div>
+        <div class="card-module-label">Module 08</div>
+        <div class="card-title">Humio RPL Logs</div>
+        <div class="card-desc">Look up embargo, RPL, and GTS status from the CCS portal Humio logs by customer ID — searchable time windows with JSON export.</div>
+        <div class="card-features">
+          <span class="feature-tag">Customer ID</span>
+          <span class="feature-tag">RPL / Embargo</span>
+          <span class="feature-tag">LogScale</span>
+        </div>
+        <div class="card-footer">
+          <div class="card-meta">aquila / ccsportal</div>
+          <div class="card-arrow">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- Mentors Tools Grid -->
@@ -2130,6 +2167,8 @@
       window.location.href = '/UserRoles.html';
     } else if (tool === 'serial-checker') {
       window.location.href = '/SerialChecker.html';
+    } else if (tool === 'humio-rpl') {
+      window.location.href = '/HumioRplLogs.html';
     } else {
       showToast('This module is coming soon — stay tuned!');
     }

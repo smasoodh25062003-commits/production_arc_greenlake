@@ -10,6 +10,7 @@ from userbaseApp import userbase_bp
 from ccsTransferApp import ccs_bp
 from rolesApp import roles_bp
 from serialCheckerApp import serial_checker_bp
+from humioApp import humio_bp
 from sso_tools.webapp import build_sso_tools_app
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -37,6 +38,7 @@ def build_flask_app(*, mount_sso_via_dispatcher: bool = True) -> Flask:
     app.register_blueprint(ccs_bp)
     app.register_blueprint(roles_bp)
     app.register_blueprint(serial_checker_bp)
+    app.register_blueprint(humio_bp)
 
     @app.route("/")
     def home():
@@ -74,6 +76,10 @@ def build_flask_app(*, mount_sso_via_dispatcher: bool = True) -> Flask:
     @app.route("/SerialChecker.html")
     def serial_checker():
         return send_from_directory(BASE_DIR, "SerialChecker.html")
+
+    @app.route("/HumioRplLogs.html")
+    def humio_rpl_logs():
+        return send_from_directory(BASE_DIR, "HumioRplLogs.html")
 
     @app.route("/TransferDevices.html")
     def transfer_devices_page():
