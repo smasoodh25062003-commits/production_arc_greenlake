@@ -165,8 +165,10 @@
   const statWorkspacesPill = $("#statWorkspacesPill");
   const statServicesPill = $("#statServicesPill");
   const statsStatus = $("#statsStatus");
+  const compactToggle = $("#compactToggle");
 
   let currentResult = "";
+  let currentResultRaw = "";
   let statusTimer = null;
   let diagramBuildFn = null;
   let diagramToolbarBound = false;
@@ -330,6 +332,10 @@
   [orgIdInput, customOrgRoleInput].forEach((el) =>
     el.addEventListener("input", updatePreview)
   );
+
+  if (compactToggle) {
+    compactToggle.addEventListener("change", updatePreview);
+  }
 
   const DEFAULT_ORG_ROLE = "Organization administrator";
   function getOrgRole() {
@@ -896,10 +902,7 @@
     return String(name).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
   }
 
-  /**
-   * @param {"multiline"|"inline"} servicesSep - one top-level Okta group in the join → newline before services; several → ": ".
-   */
-  function appendServicesToSegment(segmentBase, services, servicesSep) {
+  function appendServicesToSegment(segmentBase, services) {
     const svcParts = [];
     (services || []).forEach((svc) => {
       const id = (svc.service_id || "").trim();
@@ -910,8 +913,7 @@
       svcParts.push(id, svcRole, svcScope);
     });
     if (!svcParts.length) return segmentBase;
-    const between = servicesSep === "multiline" ? ":\n" : ": ";
-    return segmentBase + between + svcParts.join(":");
+    return segmentBase + ":" + svcParts.join(":");
   }
 
   function buildMspWorkspaceSegmentInner(wsPayload) {
@@ -946,7 +948,7 @@
     return parts.join(":");
   }
 
-  function buildTenantWorkspaceSegmentInner(wsPayload, servicesSep) {
+  function buildTenantWorkspaceSegmentInner(wsPayload) {
     const tid = (wsPayload.workspace_id || "").trim();
     if (!tid) throw new Error("Workspace ID is required for tenant-type workspaces.");
     const role = (wsPayload.role || CONFIG.defaultRole).trim() || CONFIG.defaultRole;
@@ -965,17 +967,16 @@
       svcParts.push(id, svcRole + TENANT_SUFFIX, svcScope);
     });
     if (!svcParts.length) return workspaceBlock;
-    const between = servicesSep === "multiline" ? ":\n" : ": ";
-    return workspaceBlock + between + svcParts.join(":");
+    return workspaceBlock + ":" + svcParts.join(":");
   }
 
-  function buildWorkspaceSegmentV2(wsPayload, servicesSep) {
+  function buildWorkspaceSegmentV2(wsPayload) {
     const wst = normalizeWsType(wsPayload.type);
     if (wst === WS_TYPE_MSP) {
       return buildMspWorkspaceSegmentInner(wsPayload);
     }
     if (wst === WS_TYPE_TENANT) {
-      return buildTenantWorkspaceSegmentInner(wsPayload, servicesSep);
+      return buildTenantWorkspaceSegmentInner(wsPayload);
     }
 
     const workspaceId = (wsPayload.workspace_id || "").trim();
@@ -985,10 +986,10 @@
     const scope = (wsPayload.scope || CONFIG.defaultScope).trim() || CONFIG.defaultScope;
     const groupUuid = CONFIG.zeroUuid;
     const workspaceBlock = `${workspaceId}:${groupUuid}:${role}:${scope}`;
-    return appendServicesToSegment(workspaceBlock, wsPayload.services, servicesSep);
+    return appendServicesToSegment(workspaceBlock, wsPayload.services);
   }
 
-  function buildGroupRoleStringV2(groupPayload, orgPayload, outerServicesSep) {
+  function buildGroupRoleStringV2(groupPayload, orgPayload) {
     const wsList = (groupPayload.workspaces || []).filter(isWorkspaceSegmentReady);
     if (!wsList.length) {
       throw new Error(
@@ -999,10 +1000,7 @@
     const hasMsp = wsList.some((w) => normalizeWsType(w.type) === WS_TYPE_MSP);
     const versionPrefix = hasMsp ? "version_2" : "version_1";
 
-    const segments = wsList.map((ws) => {
-      const innerSep = wsList.length === 1 ? outerServicesSep : "inline";
-      return buildWorkspaceSegmentV2(ws, innerSep);
-    });
+    const segments = wsList.map((ws) => buildWorkspaceSegmentV2(ws));
     const core = segments.join("#");
 
     if (orgPayload && orgPayload.with_org) {
@@ -1026,10 +1024,8 @@
     );
     if (!active.length) return "";
 
-    const servicesSep = active.length === 1 ? "multiline" : "inline";
-
     const parts = active.map((g) => {
-      const roleString = buildGroupRoleStringV2(g, orgPayload, servicesSep);
+      const roleString = buildGroupRoleStringV2(g, orgPayload);
       const inner = escapeELSingleQuoted(roleString);
       const gn = escapeGroupNameForDoubleQuotes(g.name);
       return `isMemberOfGroupName("${gn}") ? '${inner}' : ''`;
@@ -1197,6 +1193,16 @@
     }
   }
 
+  function compactString(str) {
+    return str
+      .replace(/00000000-0000-0000-0000-000000000000/g, "0")
+      .replace(/ALL_SCOPES/g, "ALL");
+  }
+
+  function isCompactMode() {
+    return compactToggle && compactToggle.checked;
+  }
+
   function updatePreview() {
     try {
       const cards = $$(".group-card", groupsList);
@@ -1204,16 +1210,18 @@
       const groups = cards.map(readGroupPayload);
       refreshStatsBar(groups);
       const expr = buildOktaJoinExpression(groups, getOrgPayload());
-      currentResult = expr;
-      if (!expr) {
+      currentResultRaw = expr;
+      currentResult = isCompactMode() ? compactString(expr) : expr;
+      if (!currentResult) {
         output.innerHTML = '<span class="placeholder">Add at least one group with a name and at least one workspace ID to see the string.</span>';
       } else {
-        output.textContent = expr;
+        output.textContent = currentResult;
       }
       if (diagramModal && !diagramModal.hidden && diagramBuildFn) refreshDiagram();
       refreshLiveDiagram();
     } catch (err) {
       currentResult = "";
+      currentResultRaw = "";
       output.innerHTML = `<span class="placeholder">${escapeHtml(err.message)}</span>`;
       refreshLiveDiagram();
     }

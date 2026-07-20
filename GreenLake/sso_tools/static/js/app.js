@@ -221,8 +221,10 @@
   const statWorkspacesPill = $("#statWorkspacesPill");
   const statServicesPill = $("#statServicesPill");
   const statsStatus = $("#statsStatus");
+  const compactToggle = $("#compactToggle");
 
   let currentResult = "";
+  let currentResultRaw = "";
   let statusTimer = null;
   let diagramBuildFn = null;
   let diagramToolbarBound = false;
@@ -376,6 +378,10 @@
   [orgIdInput, customOrgRoleInput].forEach((el) =>
     el.addEventListener("input", updatePreview)
   );
+
+  if (compactToggle) {
+    compactToggle.addEventListener("change", updatePreview);
+  }
 
   // ----- Workspace type chooser modal -----
   let _wsTypeResolver = null;
@@ -1097,6 +1103,16 @@
     }
   }
 
+  function compactString(str) {
+    return str
+      .replace(/00000000-0000-0000-0000-000000000000/g, "0")
+      .replace(/ALL_SCOPES/g, "ALL");
+  }
+
+  function isCompactMode() {
+    return compactToggle && compactToggle.checked;
+  }
+
   function updatePreview() {
     const payload = getPayload();
     orgIdInput.classList.remove("invalid");
@@ -1107,16 +1123,19 @@
     const filled = (payload.workspaces || []).filter(isWorkspaceSegmentReady);
     if (!filled.length) {
       currentResult = "";
+      currentResultRaw = "";
       output.innerHTML = '<span class="placeholder">Add at least one workspace ID to see the string.</span>';
       if (diagramModal && !diagramModal.hidden && diagramBuildFn) refreshDiagram();
       refreshLiveDiagram();
       return;
     }
     try {
-      currentResult = buildStringLocal(payload);
+      currentResultRaw = buildStringLocal(payload);
+      currentResult = isCompactMode() ? compactString(currentResultRaw) : currentResultRaw;
       output.textContent = currentResult;
     } catch (err) {
       currentResult = "";
+      currentResultRaw = "";
       output.innerHTML = `<span class="placeholder">${escapeHtml(err.message)}</span>`;
     }
     if (diagramModal && !diagramModal.hidden && diagramBuildFn) refreshDiagram();
