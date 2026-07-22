@@ -67,6 +67,8 @@
     if (p.indexOf("transferdevices") >= 0) return "transfer-devices";
     if (p.indexOf("transfersubscriptions") >= 0) return "transfer-subscriptions";
     if (p.indexOf("sso-tools") >= 0) return "sso-tools";
+    if (p.indexOf("dsatalert") >= 0) return "dsat-analyzer";
+    if (p.indexOf("serialchecker") >= 0) return "serial-checker";
     if (p.indexOf("greenlaketools") >= 0) return "home";
     if (p.indexOf("/gldash") >= 0) return "dashboard";
     return "unknown";

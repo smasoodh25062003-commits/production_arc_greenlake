@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <script src="/greenlake-theme.js"></script>
+  <link rel="stylesheet" href="/greenlake-theme.css" />
+  <script src="/greenlake-feedback.js" defer></script>
+  <script src="/greenlake-usage.js" defer></script>
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DSAT Alert Analyzer — HPE GreenLake</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --hpe-green: #01A982; --hpe-cyan: #0D7AC7; --hpe-purple: #6A30C7;
+      --black: #FFFFFF; --surface: #F7F7F7; --panel: #FFFFFF;
+      --border: #D5D5D5; --border-bright: #B0B0B0;
+      --text: #2C2C2C; --text-secondary: #555555; --muted: #777777; --warn: #C63E3E;
+      --font-mono: 'Inter', 'JetBrains Mono', monospace;
+      --font-sans: 'Inter', system-ui, sans-serif;
+    }
+    body { background: var(--black); color: var(--text); font-family: var(--font-sans); font-weight: 500; min-height: 100vh; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes statusPulse { 0%,100%{box-shadow:0 0 0 0 rgba(1,169,130,.7);}50%{box-shadow:0 0 0 4px rgba(1,169,130,0);} }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+
+    .header { position: fixed; top:0; left:0; right:0; z-index: 100; height: 68px; display: flex; align-items: center; justify-content: space-between; padding: 0 48px; }
+    .header::before { content:''; position:absolute; inset:0; background: rgba(255,255,255,.88); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); z-index:-1; }
+    .logo-area { display:flex;align-items:center;gap:14px;text-decoration:none;cursor:pointer; }
+    .hpe-badge { width:38px;height:38px;background:var(--hpe-green);display:flex;align-items:center;justify-content:center;clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%); }
+    .hpe-badge svg { color:#FFFFFF; }
+    .logo-eyebrow { font-family:var(--font-mono);font-size:9px;letter-spacing:.25em;text-transform:uppercase;color:var(--hpe-green); }
+    .logo-name { font-size:16px;font-weight:700;color:var(--text); }
+    .logo-name em { color:var(--hpe-green);font-style:normal; }
+    .header-nav { display:flex;align-items:center;gap:8px; }
+    .nav-pill { display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:100px;border:1px solid var(--border);font-family:var(--font-mono);font-size:10px;color:var(--muted);background:transparent;text-decoration:none;cursor:pointer; }
+    .nav-pill:hover { border-color:var(--hpe-green);color:var(--hpe-green); }
+
+    .page { position:relative;z-index:1;padding:110px 48px 80px; }
+    .page-wrap { max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:22px; }
+    .page-hero { display:flex;align-items:flex-end;justify-content:space-between;padding-bottom:24px;border-bottom:1px solid var(--border);gap:24px;flex-wrap:wrap; }
+    .page-overline { font-family:var(--font-mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--hpe-green);margin-bottom:12px;display:flex;align-items:center;gap:10px; }
+    .page-overline::before { content:'';width:24px;height:1px;background:var(--hpe-green); }
+    .page-title { font-size:clamp(32px,4vw,48px);font-weight:900;letter-spacing:-.04em;line-height:1;color:var(--text); }
+    .page-title em { font-style:normal;color:var(--hpe-green); }
+    .page-subtitle { margin-top:10px;font-size:15px;color:var(--text-secondary);line-height:1.7;max-width:640px; }
+    .hero-stats { display:flex;gap:28px; }
+    .hero-stat { font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-align:right; }
+    .hero-stat span { display:block;font-size:36px;font-weight:700;line-height:1.15;letter-spacing:-.02em; }
+    .hero-stat .warn { color:var(--warn); }
+    .hero-stat .cyan { color:var(--hpe-cyan); }
+
+    .view-tabs { display:flex;gap:8px;flex-wrap:wrap; }
+    .view-tab { padding:10px 18px;border-radius:100px;border:1px solid var(--border);background:transparent;font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--muted);cursor:pointer; }
+    .view-tab.active { background:var(--hpe-green);border-color:var(--hpe-green);color:#fff; }
+
+    .panel { display:none; animation: fadeUp .25s ease; }
+    .panel.active { display:block; }
+
+    .input-card, .results-card, .eng-card, .case-card { background:var(--panel);border:1px solid var(--border);border-radius:20px;overflow:hidden; }
+    .input-body { padding:24px; }
+    .input-label { font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--text-secondary);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px; }
+    .input-label-dot { width:6px;height:6px;border-radius:50%;background:var(--hpe-green);animation:statusPulse 2s ease-in-out infinite; }
+    .file-drop { border:2px dashed var(--border);border-radius:12px;padding:36px 20px;text-align:center;background:var(--surface);cursor:pointer;transition:border-color .2s,background .2s; }
+    .file-drop:hover, .file-drop.dragover { border-color:var(--hpe-green);background:rgba(1,169,130,.04); }
+    .file-drop-title { font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px; }
+    .file-drop-hint { font-family:var(--font-mono);font-size:11px;color:var(--muted); }
+    .file-list { margin-top:14px;display:flex;flex-direction:column;gap:8px; }
+    .file-item { display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--panel);font-family:var(--font-mono);font-size:11px; }
+    .file-item button { border:none;background:transparent;color:var(--warn);cursor:pointer;font-size:11px;font-family:var(--font-mono); }
+
+    .actions-row { display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:16px; }
+    .input-hint { font-family:var(--font-mono);font-size:10px;color:var(--muted); }
+    .btn-group { display:flex;gap:8px;align-items:center;flex-wrap:wrap; }
+    .btn { display:inline-flex;align-items:center;gap:7px;padding:10px 20px;border:none;border-radius:8px;font-size:12px;font-family:var(--font-mono);font-weight:600;cursor:pointer;white-space:nowrap; }
+    .btn-primary { background:var(--hpe-green);color:#fff; }
+    .btn-primary:hover:not(:disabled) { background:#00755A; }
+    .btn-primary:disabled { opacity:.4;cursor:not-allowed; }
+    .btn-ghost { background:transparent;color:var(--muted);border:1px solid var(--border); }
+
+    .toolbar { display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid var(--border);background:var(--surface);gap:12px;flex-wrap:wrap; }
+    .toolbar-title { font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--hpe-cyan);letter-spacing:.1em;text-transform:uppercase; }
+    .search-input { width:min(280px,100%);padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--panel);font-family:var(--font-mono);font-size:11px;color:var(--text);outline:none; }
+    .search-input:focus { border-color:var(--hpe-green); }
+
+    .eng-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;padding:20px; }
+    .eng-tile { border:1px solid var(--border);border-radius:16px;padding:18px;background:var(--surface);cursor:pointer;transition:border-color .2s,transform .15s,box-shadow .2s;text-align:left;width:100%;font:inherit;color:inherit; }
+    .eng-tile:hover { border-color:var(--hpe-green);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.06); }
+    .eng-tile.active { border-color:var(--hpe-cyan);box-shadow:0 0 0 2px rgba(13,122,199,.15); }
+    .eng-tile-top { display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px; }
+    .eng-avatar { width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,rgba(1,169,130,.18),rgba(13,122,199,.18));display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-weight:700;font-size:14px;color:var(--hpe-cyan);flex-shrink:0; }
+    .eng-count { font-family:var(--font-mono);font-size:28px;font-weight:800;color:var(--warn);line-height:1; }
+    .eng-count-label { font-family:var(--font-mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:4px;text-align:right; }
+    .eng-name { font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px; }
+    .eng-manager { font-family:var(--font-mono);font-size:11px;color:var(--muted); }
+    .eng-preview { margin-top:14px;padding-top:12px;border-top:1px solid var(--border);font-family:var(--font-mono);font-size:10px;color:var(--text-secondary);line-height:1.6; }
+
+    .detail-layout { display:grid;grid-template-columns:320px 1fr;gap:0;min-height:480px; }
+    @media (max-width: 900px) { .detail-layout { grid-template-columns: 1fr; } }
+    .case-list { border-right:1px solid var(--border);max-height:640px;overflow:auto;background:var(--surface); }
+    @media (max-width: 900px) { .case-list { border-right:none;border-bottom:1px solid var(--border);max-height:240px; } }
+    .case-row { padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s; }
+    .case-row:hover { background:rgba(1,169,130,.04); }
+    .case-row.active { background:rgba(13,122,199,.08); }
+    .case-row-id { font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--text); }
+    .case-row-meta { margin-top:4px;font-family:var(--font-mono);font-size:10px;color:var(--muted);line-height:1.5; }
+
+    .case-detail { padding:22px 24px 28px; }
+    .engineer-banner { display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:18px 20px;border-radius:16px;margin-bottom:18px;background:linear-gradient(120deg,rgba(198,62,62,.08),rgba(13,122,199,.08));border:1px solid rgba(198,62,62,.2); }
+    .engineer-banner-label { font-family:var(--font-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--warn);margin-bottom:6px; }
+    .engineer-banner-name { font-size:22px;font-weight:800;letter-spacing:-.02em;color:var(--text); }
+    .engineer-banner-sub { margin-top:4px;font-family:var(--font-mono);font-size:11px;color:var(--muted); }
+    .badge-dsat { display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:100px;font-family:var(--font-mono);font-size:11px;font-weight:600;border:1px solid rgba(198,62,62,.35);color:var(--warn);background:rgba(198,62,62,.08); }
+
+    .kv-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:18px; }
+    @media (max-width: 700px) { .kv-grid { grid-template-columns: 1fr; } }
+    .kv-item { border:1px solid var(--border);border-radius:12px;padding:12px 14px;background:var(--surface); }
+    .kv-item.highlight { border-color:rgba(13,122,199,.35);background:rgba(13,122,199,.05); }
+    .kv-label { font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:6px; }
+    .kv-value { font-size:13px;color:var(--text);line-height:1.5;word-break:break-word; }
+    .section-block { margin-top:16px;border:1px solid var(--border);border-radius:12px;padding:14px 16px;background:var(--surface); }
+    .section-title { font-family:var(--font-mono);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--hpe-cyan);margin-bottom:10px; }
+    .section-body { font-size:13px;line-height:1.7;color:var(--text);white-space:pre-wrap;word-break:break-word; }
+    .rating-row { display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px; }
+    .rating-row:last-child { border-bottom:none; }
+    .rating-aspect { color:var(--text-secondary); }
+    .rating-val { font-family:var(--font-mono);color:var(--text);font-weight:600; }
+    .raw-body { display:none;margin-top:10px;max-height:280px;overflow:auto;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--panel);font-family:var(--font-mono);font-size:11px;line-height:1.6;white-space:pre-wrap; }
+    .raw-body.open { display:block; }
+
+    .loading-row { display:none;align-items:center;gap:10px;padding:16px 24px;font-family:var(--font-mono);font-size:12px;color:var(--muted); }
+    .loading-row.visible { display:flex; }
+    .spinner { width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--hpe-cyan);border-radius:50%;animation:spin .7s linear infinite; }
+    .error-banner { display:none;margin:16px 20px;padding:12px 14px;border-radius:10px;border:1px solid rgba(198,62,62,.35);background:rgba(198,62,62,.06);color:var(--warn);font-family:var(--font-mono);font-size:11px;line-height:1.6; }
+    .error-banner.visible { display:block; }
+    .empty-state { padding:48px 24px;text-align:center;color:var(--muted);font-family:var(--font-mono);font-size:12px;line-height:1.8; }
+
+    .toast { position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--panel);border-radius:12px;padding:12px 22px;font-size:12px;font-family:var(--font-mono);border:1px solid var(--border-bright);z-index:9999;opacity:0;pointer-events:none;transition:all .3s; }
+    .toast.show { opacity:1;transform:translateX(-50%) translateY(0); }
+    .toast.error { border-color:rgba(255,107,107,.4);color:var(--warn); }
+    .toast.success { border-color:rgba(1,169,130,.4);color:var(--hpe-green); }
+
+    .kpi-row { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;padding:20px; }
+    @media (max-width: 900px) { .kpi-row { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    .kpi-card { border:1px solid var(--border);border-radius:16px;padding:18px;background:var(--surface); }
+    .kpi-label { font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:8px; }
+    .kpi-value { font-family:var(--font-mono);font-size:32px;font-weight:800;line-height:1; }
+    .kpi-value.warn { color:var(--warn); }
+    .kpi-value.cyan { color:var(--hpe-cyan); }
+    .kpi-value.green { color:var(--hpe-green); }
+    .chart-grid { display:grid;grid-template-columns:1.2fr 1fr;gap:16px;padding:0 20px 20px; }
+    @media (max-width: 900px) { .chart-grid { grid-template-columns:1fr; } }
+    .chart-box { border:1px solid var(--border);border-radius:16px;padding:16px;background:var(--surface);min-height:280px; }
+    .chart-box h3 { font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--hpe-cyan);margin-bottom:12px; }
+    .chart-box canvas { max-height:240px; }
+    .pbi-help { margin:0 20px 20px;padding:14px 16px;border-radius:12px;border:1px solid var(--border);background:var(--panel);font-size:12px;line-height:1.7;color:var(--text-secondary); }
+    .pbi-help code { font-family:var(--font-mono);font-size:11px;color:var(--hpe-cyan); }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="/platform-tools-dark.css" />
+</head>
+<body>
+
+<header class="header">
+  <div class="logo-area" onclick="window.location.href='/GreenLakeTools.html'">
+    <div class="hpe-badge"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L3 7v5c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5z"/></svg></div>
+    <div>
+      <div class="logo-eyebrow">HPE GreenLake</div>
+      <div class="logo-name">Platform <em>Tools</em></div>
+    </div>
+  </div>
+  <nav class="header-nav">
+    <div class="nav-pill">Mentor Module 04</div>
+    <a href="/GreenLakeTools.html" class="nav-pill">← Home</a>
+    <button type="button" id="themeToggle" class="gl-theme-toggle" aria-label="Toggle theme" title="Toggle light/dark mode">
+      <span class="theme-icon theme-icon-light" aria-hidden="true">&#9728;</span>
+      <span class="theme-icon theme-icon-dark" aria-hidden="true">&#9790;</span>
+    </button>
+  </nav>
+</header>
+
+<div class="page">
+  <div class="page-wrap">
+    <div class="page-hero">
+      <div>
+        <div class="page-overline">Mentors · Module 04</div>
+        <h1 class="page-title">DSAT <em>Engineer Report</em></h1>
+        <p class="page-subtitle">Upload Outlook DSAT <code>.msg</code> alerts, store them on this server, and see which engineer owns each case — with a rollup report and full case detail.</p>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat">Engineers<span class="cyan" id="hero-engineers">0</span></div>
+        <div class="hero-stat">DSATs<span class="warn" id="hero-alerts">0</span></div>
+      </div>
+    </div>
+
+    <div class="view-tabs">
+      <button class="view-tab active" data-view="dashboard" type="button" onclick="switchView('dashboard')">Dashboard</button>
+      <button class="view-tab" data-view="engineers" type="button" onclick="switchView('engineers')">By Engineer</button>
+      <button class="view-tab" data-view="detail" type="button" onclick="switchView('detail')">Case Detail</button>
+      <button class="view-tab" data-view="upload" type="button" onclick="switchView('upload')">Upload</button>
+    </div>
+
+    <!-- Power BI-style dashboard -->
+    <div class="panel active" id="panel-dashboard">
+      <div class="eng-card">
+        <div class="toolbar">
+          <span class="toolbar-title">DSAT Power BI dashboard</span>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <a class="btn btn-ghost" href="/api/dsat/export.xlsx" style="text-decoration:none;padding:8px 12px">Export Excel</a>
+            <a class="btn btn-ghost" href="/api/dsat/export.csv" style="text-decoration:none;padding:8px 12px">Export CSV</a>
+            <button class="btn btn-ghost" type="button" onclick="loadDashboard()" style="padding:8px 12px">Refresh</button>
+          </div>
+        </div>
+        <div class="loading-row" id="dash-loading"><div class="spinner"></div><span>Loading dashboard...</span></div>
+        <div class="kpi-row">
+          <div class="kpi-card"><div class="kpi-label">Total DSATs</div><div class="kpi-value warn" id="kpi-alerts">0</div></div>
+          <div class="kpi-card"><div class="kpi-label">Engineers</div><div class="kpi-value cyan" id="kpi-engineers">0</div></div>
+          <div class="kpi-card"><div class="kpi-label">Managers</div><div class="kpi-value green" id="kpi-managers">0</div></div>
+          <div class="kpi-card"><div class="kpi-label">Dissatisfied</div><div class="kpi-value warn" id="kpi-dissatisfied">0</div></div>
+        </div>
+        <div class="chart-grid">
+          <div class="chart-box">
+            <h3>DSATs by engineer</h3>
+            <canvas id="chart-engineer"></canvas>
+          </div>
+          <div class="chart-box">
+            <h3>Overall satisfaction</h3>
+            <canvas id="chart-satisfaction"></canvas>
+          </div>
+          <div class="chart-box">
+            <h3>By manager</h3>
+            <canvas id="chart-manager"></canvas>
+          </div>
+          <div class="chart-box">
+            <h3>Likelihood to recommend (NPS score)</h3>
+            <canvas id="chart-nps"></canvas>
+          </div>
+        </div>
+        <div class="pbi-help">
+          <strong>Storage:</strong> Alerts are saved in SQLite (<code>data/dsat.db</code>) with the original <code>.msg</code> on disk.
+          <br /><strong>Connect Microsoft Power BI Desktop:</strong>
+          Download <code>Export Excel</code> or <code>Export CSV</code>, then in Power BI →
+          <em>Get data</em> → Excel / Text/CSV → open the file → build visuals on
+          <code>DSAT_Cases</code> and <code>By_Engineer</code> sheets.
+          Refresh the export after new uploads to update your report.
+        </div>
+      </div>
+    </div>
+
+    <!-- Engineers rollup -->
+    <div class="panel" id="panel-engineers">
+      <div class="eng-card">
+        <div class="toolbar">
+          <span class="toolbar-title">Engineers with DSAT alerts</span>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <input class="search-input" id="eng-search" type="search" placeholder="Filter engineer or manager..." oninput="renderEngineers()" />
+            <button class="btn btn-ghost" type="button" onclick="loadEngineers()" style="padding:8px 12px">Refresh</button>
+          </div>
+        </div>
+        <div class="loading-row" id="eng-loading"><div class="spinner"></div><span>Loading engineer report...</span></div>
+        <div class="eng-grid" id="eng-grid"></div>
+        <div class="empty-state" id="eng-empty" style="display:none">No DSAT alerts stored yet. Switch to <strong>Upload</strong> and add .msg files.</div>
+      </div>
+    </div>
+
+    <!-- Case detail -->
+    <div class="panel" id="panel-detail">
+      <div class="results-card">
+        <div class="toolbar">
+          <span class="toolbar-title" id="detail-toolbar-title">Case detail</span>
+          <button class="btn btn-ghost" type="button" onclick="switchView('engineers')" style="padding:8px 12px">← All engineers</button>
+        </div>
+        <div class="detail-layout">
+          <div class="case-list" id="case-list">
+            <div class="empty-state" style="padding:28px 16px">Select an engineer to see their cases.</div>
+          </div>
+          <div class="case-detail" id="case-detail">
+            <div class="empty-state">Pick a case on the left to open the full DSAT report.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upload -->
+    <div class="panel" id="panel-upload">
+      <div class="input-card">
+        <div class="input-body">
+          <div class="input-label">
+            <div class="input-label-dot"></div>
+            <span>Outlook .msg files</span>
+          </div>
+          <div class="file-drop" id="file-drop">
+            <div class="file-drop-title">Drop DSAT alert .msg files here or click to browse</div>
+            <div class="file-drop-hint">Outlook Message (.msg) · multiple files · stored on server under data/dsat_uploads/</div>
+          </div>
+          <input type="file" id="file-input" accept=".msg,application/vnd.ms-outlook" multiple hidden />
+          <div class="file-list" id="file-list"></div>
+          <div class="actions-row">
+            <span class="input-hint"><span style="color:var(--hpe-cyan)">Ctrl+Enter</span> to analyze</span>
+            <div class="btn-group">
+              <button class="btn btn-ghost" type="button" onclick="clearUpload()">Clear</button>
+              <button class="btn btn-primary" id="run-btn" type="button" onclick="runAnalyze()">Analyze &amp; Store</button>
+            </div>
+          </div>
+        </div>
+        <div class="loading-row" id="loading-row"><div class="spinner"></div><span>Extracting text and building engineer report...</span></div>
+        <div class="error-banner" id="error-banner"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API_BASE = (window.location.origin || 'http://localhost:5000') + '/api';
+let selectedFiles = [];
+let engineerData = { engineers: [], total_engineers: 0, total_alerts: 0 };
+let activeEngineer = null;
+let activeCaseId = null;
+const charts = {};
+
+const fileInput = document.getElementById('file-input');
+const fileDrop = document.getElementById('file-drop');
+const fileList = document.getElementById('file-list');
+
+fileDrop.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => addFiles(fileInput.files));
+fileDrop.addEventListener('dragover', (e) => { e.preventDefault(); fileDrop.classList.add('dragover'); });
+fileDrop.addEventListener('dragleave', () => fileDrop.classList.remove('dragover'));
+fileDrop.addEventListener('drop', (e) => {
+  e.preventDefault();
+  fileDrop.classList.remove('dragover');
+  addFiles(e.dataTransfer.files);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey && e.key === 'Enter') runAnalyze();
+});
+
+function switchView(name) {
+  document.querySelectorAll('.view-tab').forEach((t) => t.classList.toggle('active', t.dataset.view === name));
+  document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('active', p.id === 'panel-' + name));
+  if (name === 'dashboard') loadDashboard();
+}
+
+function chartColors(n) {
+  const palette = ['#C63E3E', '#0D7AC7', '#01A982', '#6A30C7', '#D97706', '#0891B2', '#BE185D', '#4B5563'];
+  return Array.from({ length: n }, (_, i) => palette[i % palette.length]);
+}
+
+function upsertChart(key, canvasId, type, labels, values, opts) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas || typeof Chart === 'undefined') return;
+  if (charts[key]) charts[key].destroy();
+  const base = {
+    responsive: true,
+    maintainAspectRatio: true,
+    plugins: { legend: { display: type === 'doughnut' } },
+  };
+  if (type === 'bar') {
+    base.scales = {
+      x: { ticks: { maxRotation: 45, minRotation: 0, font: { size: 10 } }, grid: { display: false } },
+      y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: 'rgba(0,0,0,.06)' } },
+    };
+  }
+  charts[key] = new Chart(canvas, {
+    type,
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: chartColors(values.length),
+        borderWidth: 0,
+        borderRadius: type === 'bar' ? 6 : 0,
+      }],
+    },
+    options: Object.assign(base, opts || {}),
+  });
+}
+
+async function loadDashboard() {
+  const loading = document.getElementById('dash-loading');
+  if (loading) loading.classList.add('visible');
+  try {
+    const res = await fetch(`${API_BASE}/dsat/dashboard`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Dashboard failed');
+
+    const kpis = data.kpis || {};
+    document.getElementById('kpi-alerts').textContent = String(kpis.total_alerts || 0);
+    document.getElementById('kpi-engineers').textContent = String(kpis.total_engineers || 0);
+    document.getElementById('kpi-managers').textContent = String(kpis.total_managers || 0);
+    document.getElementById('kpi-dissatisfied').textContent = String(kpis.dissatisfied || 0);
+    document.getElementById('hero-engineers').textContent = String(kpis.total_engineers || 0);
+    document.getElementById('hero-alerts').textContent = String(kpis.total_alerts || 0);
+
+    const eng = data.by_engineer || [];
+    upsertChart('engineer', 'chart-engineer', 'bar', eng.map((x) => x.label), eng.map((x) => x.value), {
+      plugins: { legend: { display: false } },
+      indexAxis: eng.length > 6 ? 'y' : 'x',
+    });
+
+    const sat = data.by_satisfaction || [];
+    upsertChart('satisfaction', 'chart-satisfaction', 'doughnut', sat.map((x) => x.label), sat.map((x) => x.value));
+
+    const mgr = data.by_manager || [];
+    upsertChart('manager', 'chart-manager', 'bar', mgr.map((x) => x.label), mgr.map((x) => x.value), {
+      plugins: { legend: { display: false } },
+    });
+
+    const nps = data.by_nps || [];
+    upsertChart('nps', 'chart-nps', 'doughnut', nps.map((x) => 'Score ' + x.label), nps.map((x) => x.value));
+  } catch (err) {
+    showToast(err.message || 'Dashboard failed', 'error');
+  } finally {
+    if (loading) loading.classList.remove('visible');
+  }
+}
+
+function addFiles(fileListLike) {
+  for (const file of fileListLike) {
+    if (!(file.name || '').toLowerCase().endsWith('.msg')) {
+      showToast(file.name + ': only .msg files are supported', 'error');
+      continue;
+    }
+    if (!selectedFiles.some((f) => f.name === file.name && f.size === file.size)) selectedFiles.push(file);
+  }
+  renderFileList();
+  fileInput.value = '';
+}
+
+function removeFile(index) {
+  selectedFiles.splice(index, 1);
+  renderFileList();
+}
+
+function renderFileList() {
+  fileList.innerHTML = selectedFiles.map((file, index) => `
+    <div class="file-item">
+      <span>${escapeHtml(file.name)}</span>
+      <button type="button" onclick="removeFile(${index})">Remove</button>
+    </div>
+  `).join('');
+}
+
+function clearUpload() {
+  selectedFiles = [];
+  renderFileList();
+  document.getElementById('error-banner').classList.remove('visible');
+}
+
+function escapeHtml(text) {
+  return String(text || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function showToast(msg, kind = 'success') {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.className = 'toast show ' + kind;
+  clearTimeout(showToast._timer);
+  showToast._timer = setTimeout(() => toast.classList.remove('show'), 3200);
+}
+
+function initials(name) {
+  const parts = String(name || '?').split(/[\s,]+/).filter(Boolean);
+  if (!parts.length) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function kv(label, value, highlight) {
+  return `<div class="kv-item${highlight ? ' highlight' : ''}"><div class="kv-label">${escapeHtml(label)}</div><div class="kv-value">${escapeHtml(value || '—')}</div></div>`;
+}
+
+function updateHero() {
+  document.getElementById('hero-engineers').textContent = String(engineerData.total_engineers || 0);
+  document.getElementById('hero-alerts').textContent = String(engineerData.total_alerts || 0);
+}
+
+function renderEngineers() {
+  const q = (document.getElementById('eng-search').value || '').trim().toLowerCase();
+  const grid = document.getElementById('eng-grid');
+  const empty = document.getElementById('eng-empty');
+  let list = engineerData.engineers || [];
+  if (q) {
+    list = list.filter((e) =>
+      (e.engineer || '').toLowerCase().includes(q) ||
+      (e.manager || '').toLowerCase().includes(q)
+    );
+  }
+  if (!list.length) {
+    grid.innerHTML = '';
+    empty.style.display = '';
+    empty.textContent = (engineerData.engineers || []).length
+      ? 'No engineers match that filter.'
+      : 'No DSAT alerts stored yet. Switch to Upload and add .msg files.';
+    return;
+  }
+  empty.style.display = 'none';
+  grid.innerHTML = list.map((eng, idx) => {
+    const preview = (eng.cases || []).slice(0, 2).map((c) =>
+      `Case ${escapeHtml(c.case_id || '—')} · ${escapeHtml(c.account_name || 'Account n/a')}`
+    ).join('<br />');
+    const safeName = encodeURIComponent(eng.engineer);
+    return `
+      <button type="button" class="eng-tile ${activeEngineer === eng.engineer ? 'active' : ''}" onclick="openEngineer(decodeURIComponent('${safeName}'))">
+        <div class="eng-tile-top">
+          <div class="eng-avatar">${escapeHtml(initials(eng.engineer))}</div>
+          <div>
+            <div class="eng-count">${escapeHtml(String(eng.dsat_count || 0))}</div>
+            <div class="eng-count-label">DSAT${eng.dsat_count === 1 ? '' : 's'}</div>
+          </div>
+        </div>
+        <div class="eng-name">${escapeHtml(eng.engineer)}</div>
+        <div class="eng-manager">Manager: ${escapeHtml(eng.manager || '—')}</div>
+        <div class="eng-preview">${preview || 'No cases'}</div>
+      </button>
+    `;
+  }).join('');
+}
+
+function openEngineer(name) {
+  activeEngineer = name;
+  const eng = (engineerData.engineers || []).find((e) => e.engineer === name);
+  if (!eng) {
+    showToast('Engineer not found in report', 'error');
+    return;
+  }
+  document.getElementById('detail-toolbar-title').textContent = `Cases for ${name}`;
+  const list = document.getElementById('case-list');
+  list.innerHTML = (eng.cases || []).map((c) => `
+    <div class="case-row ${c.id === activeCaseId ? 'active' : ''}" onclick="openCase('${escapeHtml(c.id)}')">
+      <div class="case-row-id">Case ${escapeHtml(c.case_id || '—')}</div>
+      <div class="case-row-meta">
+        ${escapeHtml(c.account_name || 'Unknown account')}<br />
+        ${escapeHtml(c.overall_satisfaction || 'DSAT')} · NPS ${escapeHtml(c.likelihood_to_recommend || '—')}
+      </div>
+    </div>
+  `).join('') || '<div class="empty-state" style="padding:28px 16px">No cases for this engineer.</div>';
+
+  switchView('detail');
+  renderEngineers();
+  if (eng.cases && eng.cases[0] && eng.cases[0].id) openCase(eng.cases[0].id);
+}
+
+async function openCase(id) {
+  activeCaseId = id;
+  document.querySelectorAll('.case-row').forEach((row) => {
+    row.classList.toggle('active', row.getAttribute('onclick') === `openCase('${id}')`);
+  });
+  const detail = document.getElementById('case-detail');
+  detail.innerHTML = '<div class="empty-state">Loading report...</div>';
+  try {
+    const res = await fetch(`${API_BASE}/dsat/report/${encodeURIComponent(id)}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Report not found');
+    renderCaseDetail(data);
+  } catch (err) {
+    detail.innerHTML = `<div class="empty-state">${escapeHtml(err.message || 'Failed to load')}</div>`;
+  }
+}
+
+function renderCaseDetail(payload) {
+  const meta = payload.meta || {};
+  const report = payload.report || {};
+  const email = report.email || {};
+  const c = report.case || {};
+  const ratings = report.aspect_ratings || [];
+  const engineer = c.case_owner || meta.case_owner || activeEngineer || 'Unknown engineer';
+  const manager = c.case_owner_manager || meta.case_owner_manager || '—';
+
+  if (engineer && engineer !== 'Unknown engineer') activeEngineer = engineer;
+
+  document.getElementById('case-detail').innerHTML = `
+    <div class="engineer-banner">
+      <div>
+        <div class="engineer-banner-label">Engineer / Case Owner</div>
+        <div class="engineer-banner-name">${escapeHtml(engineer)}</div>
+        <div class="engineer-banner-sub">Manager: ${escapeHtml(manager)} · Case ${escapeHtml(c.case_id || meta.case_id || '—')}</div>
+      </div>
+      <span class="badge-dsat">${escapeHtml(report.overall_satisfaction || 'DSAT')}</span>
+    </div>
+
+    <div class="kv-grid">
+      ${kv('Case Owner (Engineer)', engineer, true)}
+      ${kv('Case Owner Manager', manager, true)}
+      ${kv('Case ID', c.case_id)}
+      ${kv('Account', c.account_name)}
+      ${kv('Product', c.product_description)}
+      ${kv('Delivery', c.delivery_type)}
+      ${kv('Interview Date', c.interview_date)}
+      ${kv('Response ID', c.response_id)}
+      ${kv('Likelihood to recommend', report.likelihood_to_recommend)}
+      ${kv('Email date', email.date)}
+    </div>
+
+    <div class="section-block">
+      <div class="section-title">Customer feedback (satisfaction)</div>
+      <div class="section-body">${escapeHtml(report.additional_feedback || '—')}</div>
+    </div>
+
+    <div class="section-block">
+      <div class="section-title">Aspect ratings</div>
+      ${ratings.map((r) => `
+        <div class="rating-row">
+          <span class="rating-aspect">${escapeHtml(r.aspect)}</span>
+          <span class="rating-val">${escapeHtml(r.rating)}</span>
+        </div>
+      `).join('') || '<div class="section-body">—</div>'}
+    </div>
+
+    <div class="section-block">
+      <div class="section-title">Aruba support feedback</div>
+      <div class="section-body">${escapeHtml(report.aruba_support_feedback || '—')}</div>
+    </div>
+
+    <div class="section-block">
+      <div class="section-title">Other HPE Networking feedback</div>
+      <div class="section-body">${escapeHtml(report.other_aspects_feedback || '—')}</div>
+    </div>
+
+    <div style="margin-top:14px">
+      <button class="btn btn-ghost" type="button" onclick="toggleRaw()">Show / hide full extracted text</button>
+      <div class="raw-body" id="raw-body">${escapeHtml(report.body_text || '')}</div>
+    </div>
+  `;
+}
+
+function toggleRaw() {
+  const el = document.getElementById('raw-body');
+  if (el) el.classList.toggle('open');
+}
+
+async function loadEngineers() {
+  const loading = document.getElementById('eng-loading');
+  loading.classList.add('visible');
+  try {
+    const res = await fetch(`${API_BASE}/dsat/engineers`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to load engineers');
+    engineerData = data;
+    updateHero();
+    renderEngineers();
+  } catch (err) {
+    document.getElementById('eng-grid').innerHTML = '';
+    const empty = document.getElementById('eng-empty');
+    empty.style.display = '';
+    empty.textContent = err.message || 'Failed to load engineer report';
+  } finally {
+    loading.classList.remove('visible');
+  }
+}
+
+async function runAnalyze() {
+  if (!selectedFiles.length) {
+    showToast('Please upload at least one .msg file.', 'error');
+    return;
+  }
+  const runBtn = document.getElementById('run-btn');
+  const loadingRow = document.getElementById('loading-row');
+  runBtn.disabled = true;
+  loadingRow.classList.add('visible');
+
+  const formData = new FormData();
+  selectedFiles.forEach((file) => formData.append('files', file));
+
+  try {
+    const res = await fetch(`${API_BASE}/dsat/analyze`, { method: 'POST', body: formData });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Analyze failed');
+
+    const reports = data.reports || [];
+    if (!reports.length) throw new Error('No reports produced');
+
+    const errorBanner = document.getElementById('error-banner');
+    if ((data.errors || []).length) {
+      errorBanner.textContent = data.errors.join(' · ');
+      errorBanner.classList.add('visible');
+    } else {
+      errorBanner.classList.remove('visible');
+    }
+
+    if (data.engineers) {
+      engineerData = data.engineers;
+      updateHero();
+      renderEngineers();
+    } else {
+      await loadEngineers();
+    }
+    await loadDashboard();
+
+    selectedFiles = [];
+    renderFileList();
+    showToast(`Stored ${data.summary.processed} alert(s).`, 'success');
+    switchView('dashboard');
+  } catch (err) {
+    showToast(err.message || 'Analyze failed', 'error');
+  } finally {
+    runBtn.disabled = false;
+    loadingRow.classList.remove('visible');
+  }
+}
+
+loadEngineers();
+loadDashboard();
+</script>
+</body>
+</html>

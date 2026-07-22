@@ -11,6 +11,7 @@ from ccsTransferApp import ccs_bp
 from rolesApp import roles_bp
 from serialCheckerApp import serial_checker_bp
 from humioApp import humio_bp
+from dsatApp import dsat_bp
 from sso_tools.webapp import build_sso_tools_app
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -39,6 +40,7 @@ def build_flask_app(*, mount_sso_via_dispatcher: bool = True) -> Flask:
     app.register_blueprint(roles_bp)
     app.register_blueprint(serial_checker_bp)
     app.register_blueprint(humio_bp)
+    app.register_blueprint(dsat_bp)
 
     @app.route("/")
     def home():
@@ -88,6 +90,10 @@ def build_flask_app(*, mount_sso_via_dispatcher: bool = True) -> Flask:
     @app.route("/TransferSubscriptions.html")
     def transfer_subscriptions_page():
         return send_from_directory(BASE_DIR, "TransferSubscriptions.html")
+
+    @app.route("/DsatAlertAnalyzer.html")
+    def dsat_alert_analyzer():
+        return send_from_directory(BASE_DIR, "DsatAlertAnalyzer.html")
 
     @app.route("/rohit")
     def mentor_rohit_portal():

@@ -72,6 +72,7 @@ Defaults: `HOST=127.0.0.1`, `PORT=5000`, reload on (`UVICORN_RELOAD=1`).
 | `/UserManagement.html` | Userbase / workspace UI |
 | `/UserRoles.html` | Roles UI |
 | `/SerialChecker.html` | Serial checker UI |
+| `/DsatAlertAnalyzer.html` | Mentors: DSAT .msg upload, store, text extract, report |
 | `/TransferDevices.html` | CCS device transfer UI |
 | `/TransferSubscriptions.html` | CCS subscription transfer UI |
 | `/sso-tools/` | SSO Tools (Okta role strings + SAML) |
@@ -107,6 +108,7 @@ combined_asgi:application  (Starlette)
 | `userbaseApp.py` | `userbase_bp` | `POST /api/workspace-stream` |
 | `rolesApp.py` | `roles_bp` | `POST /api/roles-stream` |
 | `serialCheckerApp.py` | `serial_checker_bp` | `POST /api/serial-check` |
+| `dsatApp.py` | `dsat_bp` | `POST /api/dsat/analyze`, `GET /api/dsat/history`, `GET /api/dsat/engineers`, `GET /api/dsat/dashboard`, `GET /api/dsat/export.csv|.xlsx` — SQLite at `data/dsat.db` |
 | `ccsTransferApp.py` | `ccs_bp` | `POST /api/ccs/lookup-devices`, `/api/ccs/transfer-devices`, `/api/ccs/transfer-subscriptions` |
 
 Many APIs are **streaming** (NDJSON / event-style responses) for long-running GreenLake lookups. Prefer streaming patterns when adding similar bulk tools.

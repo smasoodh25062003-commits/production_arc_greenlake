@@ -1,4 +1,6 @@
 __pycache__/
+data/dsat_uploads/
+data/dsat.db
 *.pyc
 .venv/
 .env
@@ -6,4 +8,8 @@ __pycache__/
 token.yaml
 **/token.yaml
 .coverage
+*.db
+logs/
+**/logs/*.db
+**/logs/*.log
 
