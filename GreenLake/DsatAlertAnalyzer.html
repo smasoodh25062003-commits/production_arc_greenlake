@@ -143,18 +143,25 @@
     .toast.success { border-color:rgba(1,169,130,.4);color:var(--hpe-green); }
 
     .kpi-row { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;padding:20px; }
-    @media (max-width: 900px) { .kpi-row { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    @media (max-width: 1100px) { .kpi-row { grid-template-columns:repeat(2,minmax(0,1fr)); } }
     .kpi-card { border:1px solid var(--border);border-radius:16px;padding:18px;background:var(--surface); }
     .kpi-label { font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:8px; }
     .kpi-value { font-family:var(--font-mono);font-size:32px;font-weight:800;line-height:1; }
+    .kpi-sub { margin-top:6px;font-family:var(--font-mono);font-size:10px;color:var(--muted); }
     .kpi-value.warn { color:var(--warn); }
     .kpi-value.cyan { color:var(--hpe-cyan); }
     .kpi-value.green { color:var(--hpe-green); }
     .chart-grid { display:grid;grid-template-columns:1.2fr 1fr;gap:16px;padding:0 20px 20px; }
     @media (max-width: 900px) { .chart-grid { grid-template-columns:1fr; } }
     .chart-box { border:1px solid var(--border);border-radius:16px;padding:16px;background:var(--surface);min-height:280px; }
+    .chart-box.wide { grid-column: 1 / -1; }
     .chart-box h3 { font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--hpe-cyan);margin-bottom:12px; }
-    .chart-box canvas { max-height:240px; }
+    .chart-box canvas { max-height:260px; }
+    .recent-table { width:100%;border-collapse:collapse;font-size:12px; }
+    .recent-table th { text-align:left;font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:8px 6px;border-bottom:1px solid var(--border); }
+    .recent-table td { padding:10px 6px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:top; }
+    .recent-table tr { cursor:pointer; }
+    .recent-table tr:hover td { background:rgba(1,169,130,.04); }
     .pbi-help { margin:0 20px 20px;padding:14px 16px;border-radius:12px;border:1px solid var(--border);background:var(--panel);font-size:12px;line-height:1.7;color:var(--text-secondary); }
     .pbi-help code { font-family:var(--font-mono);font-size:11px;color:var(--hpe-cyan); }
   </style>
@@ -216,9 +223,13 @@
         <div class="loading-row" id="dash-loading"><div class="spinner"></div><span>Loading dashboard...</span></div>
         <div class="kpi-row">
           <div class="kpi-card"><div class="kpi-label">Total DSATs</div><div class="kpi-value warn" id="kpi-alerts">0</div></div>
-          <div class="kpi-card"><div class="kpi-label">Engineers</div><div class="kpi-value cyan" id="kpi-engineers">0</div></div>
-          <div class="kpi-card"><div class="kpi-label">Managers</div><div class="kpi-value green" id="kpi-managers">0</div></div>
-          <div class="kpi-card"><div class="kpi-label">Dissatisfied</div><div class="kpi-value warn" id="kpi-dissatisfied">0</div></div>
+          <div class="kpi-card"><div class="kpi-label">Engineers impacted</div><div class="kpi-value cyan" id="kpi-engineers">0</div></div>
+          <div class="kpi-card"><div class="kpi-label">Accounts</div><div class="kpi-value green" id="kpi-accounts">0</div><div class="kpi-sub" id="kpi-delivery-sub">—</div></div>
+          <div class="kpi-card"><div class="kpi-label">Dissatisfied</div><div class="kpi-value warn" id="kpi-dissatisfied">0</div><div class="kpi-sub" id="kpi-dissatisfied-sub">—</div></div>
+          <div class="kpi-card"><div class="kpi-label">Completely dissatisfied</div><div class="kpi-value warn" id="kpi-completely">0</div></div>
+          <div class="kpi-card"><div class="kpi-label">Avg recommend score</div><div class="kpi-value cyan" id="kpi-avg-nps">—</div><div class="kpi-sub">0–10 scale</div></div>
+          <div class="kpi-card"><div class="kpi-label">With customer feedback</div><div class="kpi-value green" id="kpi-feedback">0</div></div>
+          <div class="kpi-card"><div class="kpi-label">With Aruba feedback</div><div class="kpi-value green" id="kpi-aruba-fb">0</div></div>
         </div>
         <div class="chart-grid">
           <div class="chart-box">
@@ -230,12 +241,24 @@
             <canvas id="chart-satisfaction"></canvas>
           </div>
           <div class="chart-box">
-            <h3>By manager</h3>
-            <canvas id="chart-manager"></canvas>
+            <h3>Top accounts</h3>
+            <canvas id="chart-account"></canvas>
           </div>
           <div class="chart-box">
-            <h3>Likelihood to recommend (NPS score)</h3>
+            <h3>Likelihood to recommend (NPS)</h3>
             <canvas id="chart-nps"></canvas>
+          </div>
+          <div class="chart-box">
+            <h3>Aspect ratings — dissatisfied counts</h3>
+            <canvas id="chart-aspects"></canvas>
+          </div>
+          <div class="chart-box">
+            <h3>Delivery type</h3>
+            <canvas id="chart-delivery"></canvas>
+          </div>
+          <div class="chart-box wide">
+            <h3>Recent DSAT cases</h3>
+            <div id="recent-cases"></div>
           </div>
         </div>
         <div class="pbi-help">
@@ -255,7 +278,7 @@
         <div class="toolbar">
           <span class="toolbar-title">Engineers with DSAT alerts</span>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <input class="search-input" id="eng-search" type="search" placeholder="Filter engineer or manager..." oninput="renderEngineers()" />
+            <input class="search-input" id="eng-search" type="search" placeholder="Filter engineer or account..." oninput="renderEngineers()" />
             <button class="btn btn-ghost" type="button" onclick="loadEngineers()" style="padding:8px 12px">Refresh</button>
           </div>
         </div>
@@ -391,8 +414,17 @@ async function loadDashboard() {
     const kpis = data.kpis || {};
     document.getElementById('kpi-alerts').textContent = String(kpis.total_alerts || 0);
     document.getElementById('kpi-engineers').textContent = String(kpis.total_engineers || 0);
-    document.getElementById('kpi-managers').textContent = String(kpis.total_managers || 0);
+    document.getElementById('kpi-accounts').textContent = String(kpis.total_accounts || 0);
+    document.getElementById('kpi-delivery-sub').textContent =
+      (kpis.unique_delivery_types || 0) + ' delivery type(s)';
     document.getElementById('kpi-dissatisfied').textContent = String(kpis.dissatisfied || 0);
+    document.getElementById('kpi-dissatisfied-sub').textContent =
+      (kpis.dissatisfied_pct != null ? kpis.dissatisfied_pct : 0) + '% of alerts';
+    document.getElementById('kpi-completely').textContent = String(kpis.completely_dissatisfied || 0);
+    document.getElementById('kpi-avg-nps').textContent =
+      kpis.avg_nps == null ? '—' : String(kpis.avg_nps);
+    document.getElementById('kpi-feedback').textContent = String(kpis.with_customer_feedback || 0);
+    document.getElementById('kpi-aruba-fb').textContent = String(kpis.with_aruba_feedback || 0);
     document.getElementById('hero-engineers').textContent = String(kpis.total_engineers || 0);
     document.getElementById('hero-alerts').textContent = String(kpis.total_alerts || 0);
 
@@ -405,13 +437,58 @@ async function loadDashboard() {
     const sat = data.by_satisfaction || [];
     upsertChart('satisfaction', 'chart-satisfaction', 'doughnut', sat.map((x) => x.label), sat.map((x) => x.value));
 
-    const mgr = data.by_manager || [];
-    upsertChart('manager', 'chart-manager', 'bar', mgr.map((x) => x.label), mgr.map((x) => x.value), {
+    const acct = data.by_account || [];
+    upsertChart('account', 'chart-account', 'bar', acct.map((x) => x.label), acct.map((x) => x.value), {
       plugins: { legend: { display: false } },
+      indexAxis: acct.length > 4 ? 'y' : 'x',
     });
 
     const nps = data.by_nps || [];
-    upsertChart('nps', 'chart-nps', 'doughnut', nps.map((x) => 'Score ' + x.label), nps.map((x) => x.value));
+    upsertChart('nps', 'chart-nps', 'bar', nps.map((x) => 'Score ' + x.label), nps.map((x) => x.value), {
+      plugins: { legend: { display: false } },
+    });
+
+    const aspects = data.aspect_dissatisfied || [];
+    upsertChart('aspects', 'chart-aspects', 'bar', aspects.map((x) => x.label), aspects.map((x) => x.value), {
+      plugins: { legend: { display: false } },
+      indexAxis: 'y',
+    });
+
+    const delivery = data.by_delivery || [];
+    upsertChart('delivery', 'chart-delivery', 'doughnut', delivery.map((x) => x.label), delivery.map((x) => x.value));
+
+    const recent = data.recent_cases || [];
+    const recentEl = document.getElementById('recent-cases');
+    if (!recent.length) {
+      recentEl.innerHTML = '<div class="empty-state" style="padding:24px">No cases yet.</div>';
+    } else {
+      recentEl.innerHTML = `
+        <table class="recent-table">
+          <thead>
+            <tr>
+              <th>Case</th>
+              <th>Engineer</th>
+              <th>Account</th>
+              <th>Satisfaction</th>
+              <th>NPS</th>
+              <th>Uploaded</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${recent.map((c) => `
+              <tr onclick="openCaseFromDash('${escapeHtml(c.id)}', '${escapeHtml(c.engineer || '')}')">
+                <td>${escapeHtml(c.case_id || '—')}</td>
+                <td>${escapeHtml(c.engineer || '—')}</td>
+                <td>${escapeHtml(c.account_name || '—')}</td>
+                <td>${escapeHtml(c.overall_satisfaction || '—')}</td>
+                <td>${escapeHtml(c.likelihood_to_recommend || '—')}</td>
+                <td>${escapeHtml((c.uploaded_at || '').replace('T', ' ').slice(0, 19))}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
   } catch (err) {
     showToast(err.message || 'Dashboard failed', 'error');
   } finally {
@@ -491,7 +568,7 @@ function renderEngineers() {
   if (q) {
     list = list.filter((e) =>
       (e.engineer || '').toLowerCase().includes(q) ||
-      (e.manager || '').toLowerCase().includes(q)
+      (e.cases || []).some((c) => (c.account_name || '').toLowerCase().includes(q))
     );
   }
   if (!list.length) {
@@ -518,7 +595,6 @@ function renderEngineers() {
           </div>
         </div>
         <div class="eng-name">${escapeHtml(eng.engineer)}</div>
-        <div class="eng-manager">Manager: ${escapeHtml(eng.manager || '—')}</div>
         <div class="eng-preview">${preview || 'No cases'}</div>
       </button>
     `;
@@ -573,7 +649,6 @@ function renderCaseDetail(payload) {
   const c = report.case || {};
   const ratings = report.aspect_ratings || [];
   const engineer = c.case_owner || meta.case_owner || activeEngineer || 'Unknown engineer';
-  const manager = c.case_owner_manager || meta.case_owner_manager || '—';
 
   if (engineer && engineer !== 'Unknown engineer') activeEngineer = engineer;
 
@@ -582,14 +657,13 @@ function renderCaseDetail(payload) {
       <div>
         <div class="engineer-banner-label">Engineer / Case Owner</div>
         <div class="engineer-banner-name">${escapeHtml(engineer)}</div>
-        <div class="engineer-banner-sub">Manager: ${escapeHtml(manager)} · Case ${escapeHtml(c.case_id || meta.case_id || '—')}</div>
+        <div class="engineer-banner-sub">Case ${escapeHtml(c.case_id || meta.case_id || '—')} · ${escapeHtml(c.account_name || meta.account_name || '')}</div>
       </div>
       <span class="badge-dsat">${escapeHtml(report.overall_satisfaction || 'DSAT')}</span>
     </div>
 
     <div class="kv-grid">
       ${kv('Case Owner (Engineer)', engineer, true)}
-      ${kv('Case Owner Manager', manager, true)}
       ${kv('Case ID', c.case_id)}
       ${kv('Account', c.account_name)}
       ${kv('Product', c.product_description)}
@@ -598,6 +672,7 @@ function renderCaseDetail(payload) {
       ${kv('Response ID', c.response_id)}
       ${kv('Likelihood to recommend', report.likelihood_to_recommend)}
       ${kv('Email date', email.date)}
+      ${kv('From', email.from)}
     </div>
 
     <div class="section-block">
@@ -635,6 +710,25 @@ function renderCaseDetail(payload) {
 function toggleRaw() {
   const el = document.getElementById('raw-body');
   if (el) el.classList.toggle('open');
+}
+
+function openCaseFromDash(id, engineer) {
+  if (engineer) activeEngineer = engineer;
+  switchView('detail');
+  const eng = (engineerData.engineers || []).find((e) => e.engineer === engineer);
+  if (eng) {
+    document.getElementById('detail-toolbar-title').textContent = `Cases for ${engineer}`;
+    document.getElementById('case-list').innerHTML = (eng.cases || []).map((c) => `
+      <div class="case-row ${c.id === id ? 'active' : ''}" onclick="openCase('${escapeHtml(c.id)}')">
+        <div class="case-row-id">Case ${escapeHtml(c.case_id || '—')}</div>
+        <div class="case-row-meta">
+          ${escapeHtml(c.account_name || 'Unknown account')}<br />
+          ${escapeHtml(c.overall_satisfaction || 'DSAT')} · NPS ${escapeHtml(c.likelihood_to_recommend || '—')}
+        </div>
+      </div>
+    `).join('');
+  }
+  openCase(id);
 }
 
 async function loadEngineers() {

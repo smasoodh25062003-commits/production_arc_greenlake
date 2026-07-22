@@ -125,7 +125,6 @@ def _row_to_meta(row: sqlite3.Row | dict) -> dict:
         "case_id": d.get("case_id") or "",
         "account_name": d.get("account_name") or "",
         "case_owner": d.get("case_owner") or "",
-        "case_owner_manager": d.get("case_owner_manager") or "",
         "overall_satisfaction": d.get("overall_satisfaction") or "",
         "likelihood_to_recommend": d.get("likelihood_to_recommend") or "",
     }
@@ -480,13 +479,10 @@ def _engineer_rollup(items: list[dict] | None = None) -> dict:
             engineer,
             {
                 "engineer": engineer,
-                "manager": item.get("case_owner_manager") or "",
                 "dsat_count": 0,
                 "cases": [],
             },
         )
-        if not bucket["manager"] and item.get("case_owner_manager"):
-            bucket["manager"] = item["case_owner_manager"]
         bucket["dsat_count"] += 1
         bucket["cases"].append(
             {
@@ -537,7 +533,6 @@ def _flat_case_rows() -> list[dict]:
                     "uploaded_at": d.get("uploaded_at") or "",
                     "case_id": d.get("case_id") or "",
                     "engineer": d.get("case_owner") or "Unknown engineer",
-                    "manager": d.get("case_owner_manager") or "",
                     "account_name": d.get("account_name") or "",
                     "product_description": d.get("product_description") or "",
                     "delivery_type": d.get("delivery_type") or "",
@@ -562,46 +557,126 @@ def _flat_case_rows() -> list[dict]:
         conn.close()
 
 
+def _count_rating(rows: list[dict], field: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        label = (row.get(field) or "Not captured").strip() or "Not captured"
+        counts[label] = counts.get(label, 0) + 1
+    return counts
+
+
+def _avg_nps(rows: list[dict]) -> float | None:
+    values: list[float] = []
+    for row in rows:
+        raw = str(row.get("likelihood_to_recommend") or "").strip()
+        try:
+            values.append(float(raw))
+        except ValueError:
+            continue
+    if not values:
+        return None
+    return round(sum(values) / len(values), 2)
+
+
 @dsat_bp.route("/api/dsat/dashboard", methods=["GET"])
 def dsat_dashboard():
     rows = _flat_case_rows()
     by_engineer: dict[str, int] = {}
-    by_manager: dict[str, int] = {}
+    by_account: dict[str, int] = {}
     by_satisfaction: dict[str, int] = {}
     by_nps: dict[str, int] = {}
+    by_delivery: dict[str, int] = {}
 
     for row in rows:
         eng = row["engineer"] or "Unknown engineer"
-        mgr = row["manager"] or "Unknown manager"
+        acct = row["account_name"] or "Unknown account"
         sat = row["overall_satisfaction"] or "Unspecified"
         nps = str(row["likelihood_to_recommend"] or "n/a")
+        delivery = row["delivery_type"] or "Unspecified"
         by_engineer[eng] = by_engineer.get(eng, 0) + 1
-        by_manager[mgr] = by_manager.get(mgr, 0) + 1
+        by_account[acct] = by_account.get(acct, 0) + 1
         by_satisfaction[sat] = by_satisfaction.get(sat, 0) + 1
         by_nps[nps] = by_nps.get(nps, 0) + 1
+        by_delivery[delivery] = by_delivery.get(delivery, 0) + 1
 
-    def _sorted_pairs(d: dict[str, int]) -> list[dict]:
-        return [
+    def _sorted_pairs(d: dict[str, int], limit: int | None = None) -> list[dict]:
+        items = [
             {"label": k, "value": v}
             for k, v in sorted(d.items(), key=lambda kv: (-kv[1], kv[0].lower()))
         ]
+        return items[:limit] if limit else items
+
+    dissatisfied = sum(
+        1
+        for r in rows
+        if "dissatisf" in (r.get("overall_satisfaction") or "").lower()
+    )
+    completely = sum(
+        1
+        for r in rows
+        if "completely dissatisfied" in (r.get("overall_satisfaction") or "").lower()
+    )
+    with_feedback = sum(1 for r in rows if (r.get("additional_feedback") or "").strip())
+    with_aruba_fb = sum(1 for r in rows if (r.get("aruba_support_feedback") or "").strip())
+    avg_nps = _avg_nps(rows)
+    total = len(rows) or 1
+
+    aspect_fields = [
+        ("speed_of_access", "Speed of access"),
+        ("timeliness_of_updates", "Timeliness of updates"),
+        ("time_to_resolve", "Time to resolve"),
+        ("professionalism", "Professionalism"),
+    ]
+    aspect_breakdown = {}
+    aspect_worst: list[dict] = []
+    for field, label in aspect_fields:
+        counts = _count_rating(rows, field)
+        aspect_breakdown[field] = {
+            "label": label,
+            "counts": _sorted_pairs(counts),
+        }
+        bad = sum(
+            v
+            for k, v in counts.items()
+            if "dissatisf" in k.lower()
+        )
+        aspect_worst.append({"label": label, "value": bad, "field": field})
 
     return jsonify(
         {
             "kpis": {
                 "total_alerts": len(rows),
                 "total_engineers": len(by_engineer),
-                "total_managers": len(by_manager),
-                "dissatisfied": sum(
-                    1
-                    for r in rows
-                    if "dissatisf" in (r.get("overall_satisfaction") or "").lower()
-                ),
+                "total_accounts": len(by_account),
+                "dissatisfied": dissatisfied,
+                "completely_dissatisfied": completely,
+                "dissatisfied_pct": round(100.0 * dissatisfied / total, 1) if rows else 0,
+                "avg_nps": avg_nps,
+                "with_customer_feedback": with_feedback,
+                "with_aruba_feedback": with_aruba_fb,
+                "unique_delivery_types": len(by_delivery),
             },
             "by_engineer": _sorted_pairs(by_engineer),
-            "by_manager": _sorted_pairs(by_manager),
+            "by_account": _sorted_pairs(by_account, limit=12),
             "by_satisfaction": _sorted_pairs(by_satisfaction),
             "by_nps": _sorted_pairs(by_nps),
+            "by_delivery": _sorted_pairs(by_delivery),
+            "aspect_breakdown": aspect_breakdown,
+            "aspect_dissatisfied": sorted(
+                aspect_worst, key=lambda x: (-x["value"], x["label"])
+            ),
+            "recent_cases": [
+                {
+                    "id": r["id"],
+                    "case_id": r["case_id"],
+                    "engineer": r["engineer"],
+                    "account_name": r["account_name"],
+                    "overall_satisfaction": r["overall_satisfaction"],
+                    "likelihood_to_recommend": r["likelihood_to_recommend"],
+                    "uploaded_at": r["uploaded_at"],
+                }
+                for r in rows[:8]
+            ],
             "rows": rows,
             "db": str(DB_PATH.relative_to(BASE_DIR)),
         }
@@ -622,7 +697,6 @@ def dsat_export_csv():
         "uploaded_at",
         "case_id",
         "engineer",
-        "manager",
         "account_name",
         "product_description",
         "delivery_type",
@@ -667,7 +741,6 @@ def dsat_export_xlsx():
     eng_rows = [
         {
             "engineer": e["engineer"],
-            "manager": e["manager"],
             "dsat_count": e["dsat_count"],
         }
         for e in rollup["engineers"]
