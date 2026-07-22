@@ -801,7 +801,12 @@ async function runAnalyze() {
 
     selectedFiles = [];
     renderFileList();
-    showToast(`Stored ${data.summary.processed} alert(s).`, 'success');
+    showToast(
+      data.summary.updated
+        ? `Updated ${data.summary.updated} existing case(s)` + (data.summary.created ? `, added ${data.summary.created} new` : '') + '.'
+        : `Stored ${data.summary.processed} alert(s).`,
+      'success'
+    );
     switchView('dashboard');
   } catch (err) {
     showToast(err.message || 'Analyze failed', 'error');

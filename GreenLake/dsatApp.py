@@ -95,9 +95,57 @@ def _get_db() -> sqlite3.Connection:
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_dsat_uploaded ON dsat_alerts(uploaded_at)"
     )
+    conn.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_dsat_case_id_unique
+        ON dsat_alerts(case_id)
+        WHERE case_id IS NOT NULL AND TRIM(case_id) != ''
+        """
+    )
     conn.commit()
+    _dedupe_case_ids(conn)
     _migrate_legacy_json(conn)
     return conn
+
+
+def _normalize_case_id(value: str | None) -> str:
+    return re.sub(r"\s+", "", str(value or "").strip())
+
+
+def _find_by_case_id(conn: sqlite3.Connection, case_id: str) -> sqlite3.Row | None:
+    cid = _normalize_case_id(case_id)
+    if not cid:
+        return None
+    return conn.execute(
+        "SELECT * FROM dsat_alerts WHERE TRIM(case_id) = ? ORDER BY uploaded_at DESC LIMIT 1",
+        (cid,),
+    ).fetchone()
+
+
+def _dedupe_case_ids(conn: sqlite3.Connection) -> None:
+    """Keep one row per case_id (newest upload); delete older duplicates."""
+    rows = conn.execute(
+        """
+        SELECT case_id, id, uploaded_at
+        FROM dsat_alerts
+        WHERE case_id IS NOT NULL AND TRIM(case_id) != ''
+        ORDER BY case_id, uploaded_at DESC
+        """
+    ).fetchall()
+    seen: set[str] = set()
+    to_delete: list[str] = []
+    for row in rows:
+        cid = _normalize_case_id(row["case_id"])
+        if not cid:
+            continue
+        if cid in seen:
+            to_delete.append(row["id"])
+        else:
+            seen.add(cid)
+    for entry_id in to_delete:
+        conn.execute("DELETE FROM dsat_alerts WHERE id = ?", (entry_id,))
+    if to_delete:
+        conn.commit()
 
 
 def _migrate_legacy_json(conn: sqlite3.Connection) -> None:
@@ -155,6 +203,19 @@ def _insert_alert(
     case = report.get("case") or {}
     email = report.get("email") or {}
     ratings = {r.get("aspect", ""): r.get("rating", "") for r in (report.get("aspect_ratings") or [])}
+    case_id = _normalize_case_id(case.get("case_id") or meta.get("case_id") or "")
+    meta = dict(meta)
+    meta["case_id"] = case_id
+    if case_id:
+        report = dict(report)
+        report_case = dict(case)
+        report_case["case_id"] = case_id
+        report["case"] = report_case
+        # Enforce one row per case: drop any other ids for this case_id
+        conn.execute(
+            "DELETE FROM dsat_alerts WHERE TRIM(case_id) = ? AND id != ?",
+            (case_id, meta.get("id")),
+        )
     payload = json.dumps({"meta": meta, "report": report})
     conn.execute(
         """
@@ -178,7 +239,7 @@ def _insert_alert(
             meta.get("stored_filename") or "",
             meta.get("stored_path") or "",
             meta.get("subject") or email.get("subject") or "",
-            case.get("case_id") or meta.get("case_id") or "",
+            case_id,
             case.get("account_name") or meta.get("account_name") or "",
             case.get("case_owner") or meta.get("case_owner") or "",
             case.get("case_owner_manager") or meta.get("case_owner_manager") or "",
@@ -405,13 +466,18 @@ def _read_msg(path: Path) -> dict:
 
 
 def analyze_upload_files(file_items: list[tuple[str, bytes]]) -> dict:
-    """Process uploaded .msg bytes; returns payload dict (may include error)."""
+    """Process uploaded .msg bytes; returns payload dict (may include error).
+
+    One case_id → one DB row. Re-uploading the same case updates the existing entry.
+    """
     if not file_items:
         return {"error": "Please upload at least one .msg file.", "status": 400}
 
     _ensure_store()
     reports: list[dict] = []
     errors: list[str] = []
+    created = 0
+    updated = 0
     conn = _get_db()
 
     try:
@@ -421,23 +487,47 @@ def analyze_upload_files(file_items: list[tuple[str, bytes]]) -> dict:
                 errors.append(f"{original}: unsupported type (use Outlook .msg)")
                 continue
 
-            entry_id = (
-                datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
-                + "-"
-                + uuid.uuid4().hex[:8]
-            )
             safe_name = secure_filename(original) or "alert.msg"
             if not safe_name.lower().endswith(".msg"):
                 safe_name += ".msg"
 
-            entry_dir = STORE_DIR / entry_id
-            entry_dir.mkdir(parents=True, exist_ok=True)
-            stored_path = entry_dir / safe_name
-            stored_path.write_bytes(data)
+            tmp_id = "tmp-" + uuid.uuid4().hex[:12]
+            tmp_dir = STORE_DIR / tmp_id
+            tmp_dir.mkdir(parents=True, exist_ok=True)
+            tmp_path = tmp_dir / safe_name
+            tmp_path.write_bytes(data)
 
             try:
-                report = _read_msg(stored_path)
+                report = _read_msg(tmp_path)
                 case = report.get("case", {})
+                case_id = _normalize_case_id(case.get("case_id", ""))
+
+                existing = _find_by_case_id(conn, case_id) if case_id else None
+                if existing:
+                    entry_id = existing["id"]
+                    is_update = True
+                else:
+                    entry_id = (
+                        datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+                        + "-"
+                        + uuid.uuid4().hex[:8]
+                    )
+                    is_update = False
+
+                entry_dir = STORE_DIR / entry_id
+                entry_dir.mkdir(parents=True, exist_ok=True)
+                stored_path = entry_dir / safe_name
+                stored_path.write_bytes(data)
+                try:
+                    for p in tmp_dir.iterdir():
+                        p.unlink(missing_ok=True)
+                    tmp_dir.rmdir()
+                except OSError:
+                    pass
+
+                if case_id:
+                    report.setdefault("case", {})["case_id"] = case_id
+
                 report_meta = {
                     "id": entry_id,
                     "original_filename": original,
@@ -445,21 +535,40 @@ def analyze_upload_files(file_items: list[tuple[str, bytes]]) -> dict:
                     "stored_path": str(stored_path.relative_to(BASE_DIR)),
                     "uploaded_at": datetime.now(timezone.utc).isoformat(),
                     "subject": report.get("email", {}).get("subject", ""),
-                    "case_id": case.get("case_id", ""),
+                    "case_id": case_id,
                     "account_name": case.get("account_name", ""),
                     "case_owner": case.get("case_owner", ""),
                     "case_owner_manager": case.get("case_owner_manager", ""),
                     "overall_satisfaction": report.get("overall_satisfaction", ""),
                     "likelihood_to_recommend": report.get("likelihood_to_recommend", ""),
+                    "updated": is_update,
                 }
                 (entry_dir / "report.json").write_text(
                     json.dumps({"meta": report_meta, "report": report}, indent=2),
                     encoding="utf-8",
                 )
                 _insert_alert(conn, report_meta, report, commit=False)
+
+                # Same case in this batch: keep only the latest in the response list
+                if case_id:
+                    reports = [
+                        r
+                        for r in reports
+                        if _normalize_case_id((r.get("meta") or {}).get("case_id")) != case_id
+                    ]
                 reports.append({"meta": report_meta, "report": report})
+                if is_update:
+                    updated += 1
+                else:
+                    created += 1
             except Exception as exc:
                 errors.append(f"{original}: {exc}")
+                try:
+                    for p in tmp_dir.iterdir():
+                        p.unlink(missing_ok=True)
+                    tmp_dir.rmdir()
+                except OSError:
+                    pass
         conn.commit()
     finally:
         conn.close()
@@ -472,8 +581,11 @@ def analyze_upload_files(file_items: list[tuple[str, bytes]]) -> dict:
         "errors": errors,
         "summary": {
             "processed": len(reports),
+            "created": created,
+            "updated": updated,
             "failed": len(errors),
             "stored": True,
+            "unique_by_case": True,
             "db": str(DB_PATH.relative_to(BASE_DIR)),
         },
         "engineers": _engineer_rollup(),
