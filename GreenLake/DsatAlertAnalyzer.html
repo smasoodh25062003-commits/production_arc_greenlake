@@ -162,6 +162,11 @@
     .recent-table td { padding:10px 6px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:top; }
     .recent-table tr { cursor:pointer; }
     .recent-table tr:hover td { background:rgba(1,169,130,.04); }
+    .keyword-cloud { display:flex;flex-wrap:wrap;gap:8px; }
+    .keyword-chip { display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;border:1px solid var(--border);background:var(--panel);font-family:var(--font-mono);font-size:11px;color:var(--text); }
+    .keyword-chip strong { color:var(--hpe-cyan);font-size:12px; }
+    .keyword-chip .count { color:var(--warn);font-weight:700; }
+    .keyword-empty { font-family:var(--font-mono);font-size:12px;color:var(--muted); }
     .pbi-help { margin:0 20px 20px;padding:14px 16px;border-radius:12px;border:1px solid var(--border);background:var(--panel);font-size:12px;line-height:1.7;color:var(--text-secondary); }
     .pbi-help code { font-family:var(--font-mono);font-size:11px;color:var(--hpe-cyan); }
   </style>
@@ -227,7 +232,6 @@
           <div class="kpi-card"><div class="kpi-label">Accounts</div><div class="kpi-value green" id="kpi-accounts">0</div><div class="kpi-sub" id="kpi-delivery-sub">—</div></div>
           <div class="kpi-card"><div class="kpi-label">Dissatisfied</div><div class="kpi-value warn" id="kpi-dissatisfied">0</div><div class="kpi-sub" id="kpi-dissatisfied-sub">—</div></div>
           <div class="kpi-card"><div class="kpi-label">Completely dissatisfied</div><div class="kpi-value warn" id="kpi-completely">0</div></div>
-          <div class="kpi-card"><div class="kpi-label">Avg recommend score</div><div class="kpi-value cyan" id="kpi-avg-nps">—</div><div class="kpi-sub">0–10 scale</div></div>
           <div class="kpi-card"><div class="kpi-label">With customer feedback</div><div class="kpi-value green" id="kpi-feedback">0</div></div>
           <div class="kpi-card"><div class="kpi-label">With Aruba feedback</div><div class="kpi-value green" id="kpi-aruba-fb">0</div></div>
         </div>
@@ -245,16 +249,12 @@
             <canvas id="chart-account"></canvas>
           </div>
           <div class="chart-box">
-            <h3>Likelihood to recommend (NPS)</h3>
-            <canvas id="chart-nps"></canvas>
+            <h3>Delivery type</h3>
+            <canvas id="chart-delivery"></canvas>
           </div>
           <div class="chart-box">
             <h3>Aspect ratings — dissatisfied counts</h3>
             <canvas id="chart-aspects"></canvas>
-          </div>
-          <div class="chart-box">
-            <h3>Delivery type</h3>
-            <canvas id="chart-delivery"></canvas>
           </div>
           <div class="chart-box wide">
             <h3>Recent DSAT cases</h3>
@@ -421,8 +421,6 @@ async function loadDashboard() {
     document.getElementById('kpi-dissatisfied-sub').textContent =
       (kpis.dissatisfied_pct != null ? kpis.dissatisfied_pct : 0) + '% of alerts';
     document.getElementById('kpi-completely').textContent = String(kpis.completely_dissatisfied || 0);
-    document.getElementById('kpi-avg-nps').textContent =
-      kpis.avg_nps == null ? '—' : String(kpis.avg_nps);
     document.getElementById('kpi-feedback').textContent = String(kpis.with_customer_feedback || 0);
     document.getElementById('kpi-aruba-fb').textContent = String(kpis.with_aruba_feedback || 0);
     document.getElementById('hero-engineers').textContent = String(kpis.total_engineers || 0);
@@ -443,19 +441,14 @@ async function loadDashboard() {
       indexAxis: acct.length > 4 ? 'y' : 'x',
     });
 
-    const nps = data.by_nps || [];
-    upsertChart('nps', 'chart-nps', 'bar', nps.map((x) => 'Score ' + x.label), nps.map((x) => x.value), {
-      plugins: { legend: { display: false } },
-    });
+    const delivery = data.by_delivery || [];
+    upsertChart('delivery', 'chart-delivery', 'doughnut', delivery.map((x) => x.label), delivery.map((x) => x.value));
 
     const aspects = data.aspect_dissatisfied || [];
     upsertChart('aspects', 'chart-aspects', 'bar', aspects.map((x) => x.label), aspects.map((x) => x.value), {
       plugins: { legend: { display: false } },
       indexAxis: 'y',
     });
-
-    const delivery = data.by_delivery || [];
-    upsertChart('delivery', 'chart-delivery', 'doughnut', delivery.map((x) => x.label), delivery.map((x) => x.value));
 
     const recent = data.recent_cases || [];
     const recentEl = document.getElementById('recent-cases');
@@ -470,7 +463,6 @@ async function loadDashboard() {
               <th>Engineer</th>
               <th>Account</th>
               <th>Satisfaction</th>
-              <th>NPS</th>
               <th>Uploaded</th>
             </tr>
           </thead>
@@ -481,7 +473,6 @@ async function loadDashboard() {
                 <td>${escapeHtml(c.engineer || '—')}</td>
                 <td>${escapeHtml(c.account_name || '—')}</td>
                 <td>${escapeHtml(c.overall_satisfaction || '—')}</td>
-                <td>${escapeHtml(c.likelihood_to_recommend || '—')}</td>
                 <td>${escapeHtml((c.uploaded_at || '').replace('T', ' ').slice(0, 19))}</td>
               </tr>
             `).join('')}
@@ -615,7 +606,7 @@ function openEngineer(name) {
       <div class="case-row-id">Case ${escapeHtml(c.case_id || '—')}</div>
       <div class="case-row-meta">
         ${escapeHtml(c.account_name || 'Unknown account')}<br />
-        ${escapeHtml(c.overall_satisfaction || 'DSAT')} · NPS ${escapeHtml(c.likelihood_to_recommend || '—')}
+        ${escapeHtml(c.overall_satisfaction || 'DSAT')} · ${escapeHtml(c.account_name || 'Account n/a')}
       </div>
     </div>
   `).join('') || '<div class="empty-state" style="padding:28px 16px">No cases for this engineer.</div>';
@@ -670,7 +661,6 @@ function renderCaseDetail(payload) {
       ${kv('Delivery', c.delivery_type)}
       ${kv('Interview Date', c.interview_date)}
       ${kv('Response ID', c.response_id)}
-      ${kv('Likelihood to recommend', report.likelihood_to_recommend)}
       ${kv('Email date', email.date)}
       ${kv('From', email.from)}
     </div>
@@ -723,7 +713,7 @@ function openCaseFromDash(id, engineer) {
         <div class="case-row-id">Case ${escapeHtml(c.case_id || '—')}</div>
         <div class="case-row-meta">
           ${escapeHtml(c.account_name || 'Unknown account')}<br />
-          ${escapeHtml(c.overall_satisfaction || 'DSAT')} · NPS ${escapeHtml(c.likelihood_to_recommend || '—')}
+          ${escapeHtml(c.overall_satisfaction || 'DSAT')} · ${escapeHtml(c.account_name || 'Account n/a')}
         </div>
       </div>
     `).join('');

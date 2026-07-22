@@ -565,17 +565,90 @@ def _count_rating(rows: list[dict], field: str) -> dict[str, int]:
     return counts
 
 
-def _avg_nps(rows: list[dict]) -> float | None:
-    values: list[float] = []
+_STOPWORDS = {
+    "a", "an", "the", "and", "or", "but", "if", "then", "else", "when", "at", "by",
+    "for", "with", "about", "against", "between", "into", "through", "during",
+    "before", "after", "above", "below", "to", "from", "up", "down", "in", "out",
+    "on", "off", "over", "under", "again", "further", "once", "here", "there",
+    "all", "any", "both", "each", "few", "more", "most", "other", "some", "such",
+    "no", "nor", "not", "only", "own", "same", "so", "than", "too", "very", "can",
+    "will", "just", "don", "should", "now", "is", "are", "was", "were", "be",
+    "been", "being", "have", "has", "had", "do", "does", "did", "of", "as", "it",
+    "its", "this", "that", "these", "those", "i", "we", "you", "he", "she", "they",
+    "them", "their", "our", "your", "my", "me", "us", "him", "her", "what", "which",
+    "who", "whom", "how", "why", "where", "would", "could", "should", "also", "get",
+    "got", "using", "used", "use", "please", "kindly", "dear", "all", "based",
+    "selection", "additional", "information", "feedback", "support", "experience",
+    "recent", "technical", "hpe", "aruba", "networking", "case", "alert", "dsat",
+    "invitation", "response", "survey", "customer", "team", "issue", "one", "two",
+    "new", "old", "able", "want", "wanted", "never", "still", "need", "needs",
+    "know", "like", "make", "made", "take", "took", "provide", "provided",
+    "http", "https", "www", "com", "net", "org", "html", "htm", "url", "ping",
+    "metadata", "partneridpid", "federation", "mailto",
+}
+
+
+def _tokenize_feedback(text: str) -> list[str]:
+    words = re.findall(r"[a-zA-Z][a-zA-Z0-9\-]{2,}", (text or "").lower())
+    return [w for w in words if w not in _STOPWORDS and not w.isdigit()]
+
+
+def _extract_keywords(rows: list[dict], *, top_n: int = 20) -> dict:
+    """Find repetitive words and 2-word phrases across customer comments."""
+    fields = (
+        "additional_feedback",
+        "aruba_support_feedback",
+        "other_aspects_feedback",
+    )
+    # document frequency (comments containing term) + total term frequency
+    uni_df: dict[str, int] = {}
+    uni_tf: dict[str, int] = {}
+    bi_df: dict[str, int] = {}
+    bi_tf: dict[str, int] = {}
+    comment_count = 0
+
     for row in rows:
-        raw = str(row.get("likelihood_to_recommend") or "").strip()
-        try:
-            values.append(float(raw))
-        except ValueError:
+        chunks = [str(row.get(f) or "").strip() for f in fields]
+        text = " ".join(c for c in chunks if c)
+        # Drop URLs so host fragments don't dominate keywords
+        text = re.sub(r"https?://\S+", " ", text)
+        if not text.strip():
             continue
-    if not values:
-        return None
-    return round(sum(values) / len(values), 2)
+        comment_count += 1
+        tokens = _tokenize_feedback(text)
+        seen_uni: set[str] = set()
+        seen_bi: set[str] = set()
+        for tok in tokens:
+            uni_tf[tok] = uni_tf.get(tok, 0) + 1
+            if tok not in seen_uni:
+                uni_df[tok] = uni_df.get(tok, 0) + 1
+                seen_uni.add(tok)
+        for i in range(len(tokens) - 1):
+            phrase = f"{tokens[i]} {tokens[i + 1]}"
+            bi_tf[phrase] = bi_tf.get(phrase, 0) + 1
+            if phrase not in seen_bi:
+                bi_df[phrase] = bi_df.get(phrase, 0) + 1
+                seen_bi.add(phrase)
+
+    def _rank(df: dict[str, int], tf: dict[str, int], n: int) -> list[dict]:
+        # Prefer terms that repeat across comments; break ties with raw frequency
+        items = [
+            {
+                "keyword": k,
+                "count": df.get(k, 0),
+                "mentions": tf.get(k, 0),
+                "comments": df.get(k, 0),
+            }
+            for k in df
+        ]
+        items.sort(key=lambda x: (-x["count"], -x["mentions"], x["keyword"]))
+        return items[:n]
+
+    return {
+        "comments_scanned": comment_count,
+        "top_keywords": _rank(uni_df, uni_tf, top_n),
+        "top_phrases": _rank(bi_df, bi_tf, top_n),
+    }
 
 
 @dsat_bp.route("/api/dsat/dashboard", methods=["GET"])
@@ -584,19 +657,16 @@ def dsat_dashboard():
     by_engineer: dict[str, int] = {}
     by_account: dict[str, int] = {}
     by_satisfaction: dict[str, int] = {}
-    by_nps: dict[str, int] = {}
     by_delivery: dict[str, int] = {}
 
     for row in rows:
         eng = row["engineer"] or "Unknown engineer"
         acct = row["account_name"] or "Unknown account"
         sat = row["overall_satisfaction"] or "Unspecified"
-        nps = str(row["likelihood_to_recommend"] or "n/a")
         delivery = row["delivery_type"] or "Unspecified"
         by_engineer[eng] = by_engineer.get(eng, 0) + 1
         by_account[acct] = by_account.get(acct, 0) + 1
         by_satisfaction[sat] = by_satisfaction.get(sat, 0) + 1
-        by_nps[nps] = by_nps.get(nps, 0) + 1
         by_delivery[delivery] = by_delivery.get(delivery, 0) + 1
 
     def _sorted_pairs(d: dict[str, int], limit: int | None = None) -> list[dict]:
@@ -618,8 +688,8 @@ def dsat_dashboard():
     )
     with_feedback = sum(1 for r in rows if (r.get("additional_feedback") or "").strip())
     with_aruba_fb = sum(1 for r in rows if (r.get("aruba_support_feedback") or "").strip())
-    avg_nps = _avg_nps(rows)
     total = len(rows) or 1
+    keywords = _extract_keywords(rows)
 
     aspect_fields = [
         ("speed_of_access", "Speed of access"),
@@ -635,11 +705,7 @@ def dsat_dashboard():
             "label": label,
             "counts": _sorted_pairs(counts),
         }
-        bad = sum(
-            v
-            for k, v in counts.items()
-            if "dissatisf" in k.lower()
-        )
+        bad = sum(v for k, v in counts.items() if "dissatisf" in k.lower())
         aspect_worst.append({"label": label, "value": bad, "field": field})
 
     return jsonify(
@@ -651,20 +717,25 @@ def dsat_dashboard():
                 "dissatisfied": dissatisfied,
                 "completely_dissatisfied": completely,
                 "dissatisfied_pct": round(100.0 * dissatisfied / total, 1) if rows else 0,
-                "avg_nps": avg_nps,
                 "with_customer_feedback": with_feedback,
                 "with_aruba_feedback": with_aruba_fb,
                 "unique_delivery_types": len(by_delivery),
+                "comments_scanned": keywords["comments_scanned"],
+                "top_keyword": (
+                    keywords["top_keywords"][0]["keyword"]
+                    if keywords["top_keywords"]
+                    else "—"
+                ),
             },
             "by_engineer": _sorted_pairs(by_engineer),
             "by_account": _sorted_pairs(by_account, limit=12),
             "by_satisfaction": _sorted_pairs(by_satisfaction),
-            "by_nps": _sorted_pairs(by_nps),
             "by_delivery": _sorted_pairs(by_delivery),
             "aspect_breakdown": aspect_breakdown,
             "aspect_dissatisfied": sorted(
                 aspect_worst, key=lambda x: (-x["value"], x["label"])
             ),
+            "keywords": keywords,
             "recent_cases": [
                 {
                     "id": r["id"],
@@ -672,7 +743,6 @@ def dsat_dashboard():
                     "engineer": r["engineer"],
                     "account_name": r["account_name"],
                     "overall_satisfaction": r["overall_satisfaction"],
-                    "likelihood_to_recommend": r["likelihood_to_recommend"],
                     "uploaded_at": r["uploaded_at"],
                 }
                 for r in rows[:8]
@@ -703,7 +773,6 @@ def dsat_export_csv():
         "interview_date",
         "response_id",
         "overall_satisfaction",
-        "likelihood_to_recommend",
         "speed_of_access",
         "timeliness_of_updates",
         "time_to_resolve",
