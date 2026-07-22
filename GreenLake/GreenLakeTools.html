@@ -1970,7 +1970,7 @@
     </div>
 
     <!-- Card 4: DSAT Alert Analyzer — upload .msg, store, extract text, show report -->
-    <div class="tool-card card-mentor card-cyan" id="tile-dsat-analyzer" onclick="window.location.href='/DsatAlertAnalyzer.html'">
+    <div class="tool-card card-mentor card-cyan" id="tile-dsat-analyzer" style="display:none;" onclick="window.location.href='/gldash/mentors/dsat'">
       <div class="card-glow"></div>
       <div class="card-top-bar"></div>
       <div class="card-body">
@@ -1982,22 +1982,19 @@
               <path d="M16 13H8M16 17H8M10 9H8"/>
             </svg>
           </div>
-          <div class="card-badge badge-mentor">
-            <div class="badge-dot"></div>
-            Mentor Tool
-          </div>
+          <div class="card-badge badge-mentor"><div class="badge-dot"></div>Admin</div>
         </div>
         <div class="card-module-label">Mentor Module 04</div>
         <div class="card-title">DSAT Alert Analyzer</div>
-        <div class="card-desc">Upload Outlook DSAT alert <code>.msg</code> files. Stored on this server with text extraction and an engineer rollup report (which case owner received each DSAT) plus full case detail.</div>
+        <div class="card-desc">Upload Outlook DSAT alert <code>.msg</code> files. Stored on this server with text extraction and an engineer rollup report. Requires admin login at <code>/gldash/login</code>.</div>
         <div class="card-features">
-          <span class="feature-tag">.msg Upload</span>
+          <span class="feature-tag">Admin only</span>
           <span class="feature-tag">By Engineer</span>
-          <span class="feature-tag">Stored</span>
-          <span class="feature-tag">Report</span>
+          <span class="feature-tag">RBAC</span>
+          <span class="feature-tag">SQLite</span>
         </div>
         <div class="card-footer">
-          <div class="card-meta">/DsatAlertAnalyzer.html</div>
+          <div class="card-meta">/gldash/mentors/dsat</div>
           <div class="card-arrow">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
           </div>

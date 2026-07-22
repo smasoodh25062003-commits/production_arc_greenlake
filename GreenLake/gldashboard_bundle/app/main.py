@@ -49,6 +49,7 @@ from app.api.routers.auth import router as auth_router
 from app.api.routers.ccs_manager import router as ccs_router
 from app.api.routers.feedback import router as feedback_router
 from app.api.routers.usage import router as usage_router
+from app.api.routers.dsat import router as dsat_router
 
 app.include_router(devices_router.router, prefix="/api/devices", tags=["devices"])
 app.include_router(reports_router, prefix="/api/reports", tags=["reports"])
@@ -57,6 +58,7 @@ app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 app.include_router(ccs_router, prefix="/api/ccs", tags=["ccs-manager"])
 app.include_router(feedback_router, prefix="/api/feedback", tags=["feedback"])
 app.include_router(usage_router, prefix="/api/usage", tags=["usage"])
+app.include_router(dsat_router, prefix="/api/dsat", tags=["dsat"])
 from app.api.routers import sites_groups
 
 app.include_router(sites_groups.router, prefix="/api", tags=["sites-groups"])
@@ -414,3 +416,27 @@ async def read_mentor_usage(request: Request):
     return templates.TemplateResponse(
         request, "mentor_usage.html", _ctx(request, items=items, stats=stats)
     )
+
+
+@app.get("/mentors/dsat", response_class=HTMLResponse)
+async def read_mentor_dsat(request: Request):
+    """Admin-only DSAT Alert Analyzer (Mentors module)."""
+    user = _require_login(request)
+    if not user:
+        return RedirectResponse(url=_url("/login"), status_code=302)
+    from app.auth.users import role_gte
+
+    if not role_gte(user.get("role", "viewer"), "admin"):
+        return HTMLResponse("<h2>403 — Admin access required.</h2>", status_code=403)
+
+    html_path = _BUNDLE_ROOT.parent / "DsatAlertAnalyzer.html"
+    if not html_path.is_file():
+        return HTMLResponse("<h2>DSAT page missing.</h2>", status_code=500)
+    content = html_path.read_text(encoding="utf-8")
+    # Inject dashboard prefix so API calls hit /gldash/api/dsat (session cookie path)
+    inject = f'<script>window.__GL_PREFIX__="{_gl_prefix()}";</script>\n'
+    if "<head>" in content:
+        content = content.replace("<head>", "<head>\n  " + inject, 1)
+    else:
+        content = inject + content
+    return HTMLResponse(content)

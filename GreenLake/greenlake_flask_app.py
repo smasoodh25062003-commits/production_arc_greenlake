@@ -93,7 +93,8 @@ def build_flask_app(*, mount_sso_via_dispatcher: bool = True) -> Flask:
 
     @app.route("/DsatAlertAnalyzer.html")
     def dsat_alert_analyzer():
-        return send_from_directory(BASE_DIR, "DsatAlertAnalyzer.html")
+        """RBAC: DSAT lives under /gldash session cookie path — redirect to mentors page."""
+        return redirect("/gldash/mentors/dsat", code=302)
 
     @app.route("/rohit")
     def mentor_rohit_portal():

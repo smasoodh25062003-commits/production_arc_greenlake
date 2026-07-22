@@ -72,7 +72,7 @@ Defaults: `HOST=127.0.0.1`, `PORT=5000`, reload on (`UVICORN_RELOAD=1`).
 | `/UserManagement.html` | Userbase / workspace UI |
 | `/UserRoles.html` | Roles UI |
 | `/SerialChecker.html` | Serial checker UI |
-| `/DsatAlertAnalyzer.html` | Mentors: DSAT .msg upload, store, text extract, report |
+| `/DsatAlertAnalyzer.html` | Redirect → `/gldash/mentors/dsat` (admin RBAC) |
 | `/TransferDevices.html` | CCS device transfer UI |
 | `/TransferSubscriptions.html` | CCS subscription transfer UI |
 | `/sso-tools/` | SSO Tools (Okta role strings + SAML) |

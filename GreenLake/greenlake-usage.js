@@ -126,8 +126,10 @@
         if (!data || !data.is_admin) return;
         var fb = document.getElementById("tile-feedback-inbox");
         var us = document.getElementById("tile-usage-log");
+        var dsat = document.getElementById("tile-dsat-analyzer");
         if (fb) fb.style.display = "";
         if (us) us.style.display = "";
+        if (dsat) dsat.style.display = "";
       })
       .catch(function () {});
   }

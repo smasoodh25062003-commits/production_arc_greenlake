@@ -18,6 +18,21 @@ STORE_DIR = BASE_DIR / "data" / "dsat_uploads"
 DB_PATH = BASE_DIR / "data" / "dsat.db"
 INDEX_PATH = STORE_DIR / "index.json"  # legacy — migrated once into SQLite
 
+
+@dsat_bp.before_request
+def _lock_unauthenticated_flask_dsat():
+    """Session cookie is scoped to /gldash — Flask APIs stay locked; use FastAPI mentors routes."""
+    return (
+        jsonify(
+            {
+                "error": "DSAT Alert Analyzer requires admin login. Open /gldash/mentors/dsat after signing in at /gldash/login.",
+                "login": "/gldash/login",
+                "api": "/gldash/api/dsat/",
+            }
+        ),
+        401,
+    )
+
 CASE_FIELDS = [
     ("case_id", r"Case ID\s*-?\s*(.+?)(?=\n|Product Description|$)"),
     ("product_description", r"Product Description\s*-?\s*(.+?)(?=\n|Delivery Type|$)"),
@@ -389,11 +404,10 @@ def _read_msg(path: Path) -> dict:
         msg.close()
 
 
-@dsat_bp.route("/api/dsat/analyze", methods=["POST"])
-def analyze_dsat():
-    files = [f for f in request.files.getlist("files") if f and f.filename]
-    if not files:
-        return jsonify({"error": "Please upload at least one .msg file."}), 400
+def analyze_upload_files(file_items: list[tuple[str, bytes]]) -> dict:
+    """Process uploaded .msg bytes; returns payload dict (may include error)."""
+    if not file_items:
+        return {"error": "Please upload at least one .msg file.", "status": 400}
 
     _ensure_store()
     reports: list[dict] = []
@@ -401,8 +415,8 @@ def analyze_dsat():
     conn = _get_db()
 
     try:
-        for upload in files:
-            original = upload.filename or "upload.msg"
+        for original, data in file_items:
+            original = original or "upload.msg"
             if not original.lower().endswith(".msg"):
                 errors.append(f"{original}: unsupported type (use Outlook .msg)")
                 continue
@@ -419,7 +433,7 @@ def analyze_dsat():
             entry_dir = STORE_DIR / entry_id
             entry_dir.mkdir(parents=True, exist_ok=True)
             stored_path = entry_dir / safe_name
-            upload.save(stored_path)
+            stored_path.write_bytes(data)
 
             try:
                 report = _read_msg(stored_path)
@@ -438,7 +452,6 @@ def analyze_dsat():
                     "overall_satisfaction": report.get("overall_satisfaction", ""),
                     "likelihood_to_recommend": report.get("likelihood_to_recommend", ""),
                 }
-                # Keep a JSON sidecar for easy file browsing; SQLite is source of truth
                 (entry_dir / "report.json").write_text(
                     json.dumps({"meta": report_meta, "report": report}, indent=2),
                     encoding="utf-8",
@@ -452,21 +465,20 @@ def analyze_dsat():
         conn.close()
 
     if not reports and errors:
-        return jsonify({"error": errors[0], "errors": errors}), 400
+        return {"error": errors[0], "errors": errors, "status": 400}
 
-    return jsonify(
-        {
-            "reports": reports,
-            "errors": errors,
-            "summary": {
-                "processed": len(reports),
-                "failed": len(errors),
-                "stored": True,
-                "db": str(DB_PATH.relative_to(BASE_DIR)),
-            },
-            "engineers": _engineer_rollup(),
-        }
-    )
+    return {
+        "reports": reports,
+        "errors": errors,
+        "summary": {
+            "processed": len(reports),
+            "failed": len(errors),
+            "stored": True,
+            "db": str(DB_PATH.relative_to(BASE_DIR)),
+        },
+        "engineers": _engineer_rollup(),
+        "status": 200,
+    }
 
 
 def _engineer_rollup(items: list[dict] | None = None) -> dict:
@@ -653,6 +665,10 @@ def _extract_keywords(rows: list[dict], *, top_n: int = 20) -> dict:
 
 @dsat_bp.route("/api/dsat/dashboard", methods=["GET"])
 def dsat_dashboard():
+    return jsonify(build_dashboard_payload())
+
+
+def build_dashboard_payload() -> dict:
     rows = _flat_case_rows()
     by_engineer: dict[str, int] = {}
     by_account: dict[str, int] = {}
@@ -689,7 +705,6 @@ def dsat_dashboard():
     with_feedback = sum(1 for r in rows if (r.get("additional_feedback") or "").strip())
     with_aruba_fb = sum(1 for r in rows if (r.get("aruba_support_feedback") or "").strip())
     total = len(rows) or 1
-    keywords = _extract_keywords(rows)
 
     aspect_fields = [
         ("speed_of_access", "Speed of access"),
@@ -697,60 +712,45 @@ def dsat_dashboard():
         ("time_to_resolve", "Time to resolve"),
         ("professionalism", "Professionalism"),
     ]
-    aspect_breakdown = {}
     aspect_worst: list[dict] = []
     for field, label in aspect_fields:
         counts = _count_rating(rows, field)
-        aspect_breakdown[field] = {
-            "label": label,
-            "counts": _sorted_pairs(counts),
-        }
         bad = sum(v for k, v in counts.items() if "dissatisf" in k.lower())
         aspect_worst.append({"label": label, "value": bad, "field": field})
 
-    return jsonify(
-        {
-            "kpis": {
-                "total_alerts": len(rows),
-                "total_engineers": len(by_engineer),
-                "total_accounts": len(by_account),
-                "dissatisfied": dissatisfied,
-                "completely_dissatisfied": completely,
-                "dissatisfied_pct": round(100.0 * dissatisfied / total, 1) if rows else 0,
-                "with_customer_feedback": with_feedback,
-                "with_aruba_feedback": with_aruba_fb,
-                "unique_delivery_types": len(by_delivery),
-                "comments_scanned": keywords["comments_scanned"],
-                "top_keyword": (
-                    keywords["top_keywords"][0]["keyword"]
-                    if keywords["top_keywords"]
-                    else "—"
-                ),
-            },
-            "by_engineer": _sorted_pairs(by_engineer),
-            "by_account": _sorted_pairs(by_account, limit=12),
-            "by_satisfaction": _sorted_pairs(by_satisfaction),
-            "by_delivery": _sorted_pairs(by_delivery),
-            "aspect_breakdown": aspect_breakdown,
-            "aspect_dissatisfied": sorted(
-                aspect_worst, key=lambda x: (-x["value"], x["label"])
-            ),
-            "keywords": keywords,
-            "recent_cases": [
-                {
-                    "id": r["id"],
-                    "case_id": r["case_id"],
-                    "engineer": r["engineer"],
-                    "account_name": r["account_name"],
-                    "overall_satisfaction": r["overall_satisfaction"],
-                    "uploaded_at": r["uploaded_at"],
-                }
-                for r in rows[:8]
-            ],
-            "rows": rows,
-            "db": str(DB_PATH.relative_to(BASE_DIR)),
-        }
-    )
+    return {
+        "kpis": {
+            "total_alerts": len(rows),
+            "total_engineers": len(by_engineer),
+            "total_accounts": len(by_account),
+            "dissatisfied": dissatisfied,
+            "completely_dissatisfied": completely,
+            "dissatisfied_pct": round(100.0 * dissatisfied / total, 1) if rows else 0,
+            "with_customer_feedback": with_feedback,
+            "with_aruba_feedback": with_aruba_fb,
+            "unique_delivery_types": len(by_delivery),
+        },
+        "by_engineer": _sorted_pairs(by_engineer),
+        "by_account": _sorted_pairs(by_account, limit=12),
+        "by_satisfaction": _sorted_pairs(by_satisfaction),
+        "by_delivery": _sorted_pairs(by_delivery),
+        "aspect_dissatisfied": sorted(
+            aspect_worst, key=lambda x: (-x["value"], x["label"])
+        ),
+        "recent_cases": [
+            {
+                "id": r["id"],
+                "case_id": r["case_id"],
+                "engineer": r["engineer"],
+                "account_name": r["account_name"],
+                "overall_satisfaction": r["overall_satisfaction"],
+                "uploaded_at": r["uploaded_at"],
+            }
+            for r in rows[:8]
+        ],
+        "rows": rows,
+        "db": str(DB_PATH.relative_to(BASE_DIR)),
+    }
 
 
 @dsat_bp.route("/api/dsat/export.csv", methods=["GET"])

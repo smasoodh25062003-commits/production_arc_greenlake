@@ -123,14 +123,17 @@
   }
 
   function checkAdminMentorCard() {
-    var card = document.getElementById("tile-feedback-inbox");
-    if (!card) return;
+    var fb = document.getElementById("tile-feedback-inbox");
+    var dsat = document.getElementById("tile-dsat-analyzer");
+    if (!fb && !dsat) return;
     fetch(API_BASE + "/whoami", { credentials: "include" })
       .then(function (r) {
         return r.json();
       })
       .then(function (data) {
-        if (data && data.is_admin) card.style.display = "";
+        if (!data || !data.is_admin) return;
+        if (fb) fb.style.display = "";
+        if (dsat) dsat.style.display = "";
       })
       .catch(function () {});
   }
