@@ -4,7 +4,6 @@
   <script src="/greenlake-theme.js"></script>
   <link rel="stylesheet" href="/greenlake-theme.css" />
   <script src="/greenlake-feedback.js" defer></script>
-  <script src="/greenlake-usage.js" defer></script>
 
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -213,6 +212,26 @@
     @keyframes statusPulse {
       0%, 100% { box-shadow: 0 0 0 0 rgba(1,169,130,0.7); }
       50% { box-shadow: 0 0 0 4px rgba(1,169,130,0); }
+    }
+    .nav-pill.user-chip {
+      border-color: rgba(1,169,130,0.45);
+      color: var(--hpe-green);
+      max-width: 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    a.nav-logout {
+      text-decoration: none;
+      cursor: pointer;
+    }
+    a.nav-logout:hover {
+      border-color: #a82a2a;
+      color: #a82a2a;
+      background: rgba(168,42,42,0.06);
+    }
+    .tool-card.tile-hidden {
+      display: none !important;
     }
 
     /* ─── HERO ──────────────────────────────────────────────────────── */
@@ -1415,6 +1434,7 @@
     .toast { border-radius: 4px !important; font-weight: 600 !important; box-shadow: 0 4px 12px rgba(0,0,0,0.12) !important; }
   </style>
   <link rel="stylesheet" href="/platform-tools-dark.css" />
+  <script>window.__PLATFORM_TILE_AUTH__ = true;</script>
 
 </head>
 <body>
@@ -1449,6 +1469,10 @@
       All Systems Operational
     </div>
     <div class="nav-pill">v1.0.0 — LOCAL</div>
+    <div class="nav-pill user-chip" id="userChip" style="display:none;" title="Signed in">
+      <span id="userChipName">—</span>
+    </div>
+    <a class="nav-pill nav-logout" id="logoutBtn" href="/logout" style="display:none;">Logout</a>
     <button type="button" id="themeToggle" class="gl-theme-toggle" aria-label="Toggle theme" title="Toggle light/dark mode">
       <span class="theme-icon theme-icon-light" aria-hidden="true">&#9728;</span>
       <span class="theme-icon theme-icon-dark" aria-hidden="true">&#9790;</span>
@@ -1630,7 +1654,7 @@
   <div class="tools-grid" id="engineers-grid">
 
     <!-- Card 1: Device Management -->
-    <div class="tool-card" onclick="openTool('device')" id="tile-device">
+    <div class="tool-card tile-hidden" onclick="openTool('device')" id="tile-device">
       <div class="card-glow"></div>
       <div class="card-top-bar"></div>
       <div class="card-body">
@@ -1666,7 +1690,7 @@
     </div>
 
     <!-- Card 2: Subscription Management -->
-    <div class="tool-card card-cyan" id="tile-sub" onclick="openTool('sub')">
+    <div class="tool-card card-cyan tile-hidden" id="tile-sub" onclick="openTool('sub')">
       <div class="card-glow"></div>
       <div class="card-top-bar"></div>
       <div class="card-body">
@@ -1704,7 +1728,7 @@
     </div>
 
     <!-- Card 3: User Management -->
-    <div class="tool-card" id="tile-user" onclick="openTool('user')">
+    <div class="tool-card tile-hidden" id="tile-user" onclick="openTool('user')">
       <div class="card-glow"></div>
       <div class="card-top-bar"></div>
       <div class="card-body">
@@ -1733,7 +1757,7 @@
     </div>
 
     <!-- Card 4: User Roles -->
-    <div class="tool-card card-cyan" id="tile-roles" onclick="openTool('roles')">
+    <div class="tool-card card-cyan tile-hidden" id="tile-roles" onclick="openTool('roles')">
       <div class="card-glow"></div>
       <div class="card-top-bar"></div>
       <div class="card-body">
@@ -1767,7 +1791,7 @@
     </div>
 
     <!-- Card 5: SSO Tools (Okta role strings + SAML metadata) -->
-    <div class="tool-card" id="tile-sso-tools" onclick="window.location.href='/sso-tools/'">
+    <div class="tool-card tile-hidden" id="tile-sso-tools" onclick="window.location.href='/sso-tools/'">
       <div class="card-glow"></div>
       <div class="card-top-bar"></div>
       <div class="card-body">
@@ -1801,7 +1825,7 @@
     </div>
 
     <!-- Card 7: PDF Serial Checker -->
-    <div class="tool-card card-cyan" id="tile-serial-checker" onclick="openTool('serial-checker')">
+    <div class="tool-card card-cyan tile-hidden" id="tile-serial-checker" onclick="openTool('serial-checker')">
       <div class="card-glow"></div>
       <div class="card-top-bar"></div>
       <div class="card-body">
@@ -1835,7 +1859,7 @@
     </div>
 
     <!-- Card 8: Humio RPL Logs -->
-    <div class="tool-card" id="tile-humio-rpl" onclick="openTool('humio-rpl')">
+    <div class="tool-card tile-hidden" id="tile-humio-rpl" onclick="openTool('humio-rpl')">
       <div class="card-glow"></div>
       <div class="card-top-bar"></div>
       <div class="card-body">
@@ -1877,7 +1901,7 @@
   <div class="tools-grid" id="mentors-grid" style="display: none;">
 
     <!-- Card 1: Mentor tool — full GreenLake Dashboard (FastAPI, embedded /gldash/) -->
-    <div class="tool-card card-mentor" id="tile-mentor-tool" onclick="window.location.href='/rohit'">
+    <div class="tool-card card-mentor tile-hidden" id="tile-mentor-tool" onclick="window.location.href='/rohit'">
       <div class="card-glow"></div>
       <div class="card-top-bar"></div>
       <div class="card-body">
@@ -1911,7 +1935,7 @@
       </div>
     </div>
 
-    <div class="tool-card card-mentor card-cyan" id="tile-feedback-inbox" style="display:none;" onclick="window.location.href='/gldash/mentors/feedback'">
+    <div class="tool-card card-mentor card-cyan tile-hidden" id="tile-feedback-inbox" onclick="window.location.href='/gldash/mentors/feedback'">
       <div class="card-glow"></div>
       <div class="card-top-bar"></div>
       <div class="card-body">
@@ -1925,7 +1949,7 @@
         </div>
         <div class="card-module-label">Mentor Module 02</div>
         <div class="card-title">Feedback Inbox</div>
-        <div class="card-desc">Review user feedback. Requires admin login at <code>/gldash/login</code>.</div>
+        <div class="card-desc">Review user feedback submitted from Platform Tools.</div>
         <div class="card-features">
           <span class="feature-tag">Admin only</span>
           <span class="feature-tag">Triage</span>
@@ -1939,38 +1963,8 @@
       </div>
     </div>
 
-    <div class="tool-card card-mentor" id="tile-usage-log" style="display:none;" onclick="window.location.href='/gldash/mentors/usage'">
-      <div class="card-glow"></div>
-      <div class="card-top-bar"></div>
-      <div class="card-body">
-        <div class="card-header-row">
-          <div class="card-icon-wrap">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path d="M3 3v18h18"/>
-              <path d="M7 16l4-4 4 4 5-6"/>
-            </svg>
-          </div>
-          <div class="card-badge badge-mentor"><div class="badge-dot"></div>Admin</div>
-        </div>
-        <div class="card-module-label">Mentor Module 03</div>
-        <div class="card-title">Usage Log</div>
-        <div class="card-desc">See who opened which Platform Tools and what actions they ran — logged from now on (max 5,000 events). Requires admin login at <code>/gldash/login</code>.</div>
-        <div class="card-features">
-          <span class="feature-tag">Admin only</span>
-          <span class="feature-tag">Per tool</span>
-          <span class="feature-tag">Lightweight</span>
-        </div>
-        <div class="card-footer">
-          <div class="card-meta">/gldash/mentors/usage</div>
-          <div class="card-arrow">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Card 4: DSAT Alert Analyzer — upload .msg, store, extract text, show report -->
-    <div class="tool-card card-mentor card-cyan" id="tile-dsat-analyzer" style="display:none;" onclick="window.location.href='/gldash/mentors/dsat'">
+    <div class="tool-card card-mentor card-cyan tile-hidden" id="tile-dsat-analyzer" onclick="window.location.href='/gldash/mentors/dsat'">
       <div class="card-glow"></div>
       <div class="card-top-bar"></div>
       <div class="card-body">
@@ -1986,7 +1980,7 @@
         </div>
         <div class="card-module-label">Mentor Module 04</div>
         <div class="card-title">DSAT Alert Analyzer</div>
-        <div class="card-desc">Upload Outlook DSAT alert <code>.msg</code> files. Stored on this server with text extraction and an engineer rollup report. Requires admin login at <code>/gldash/login</code>.</div>
+        <div class="card-desc">Upload Outlook DSAT alert <code>.msg</code> files. Stored on this server with text extraction and an engineer rollup report.</div>
         <div class="card-features">
           <span class="feature-tag">Admin only</span>
           <span class="feature-tag">By Engineer</span>
@@ -2002,10 +1996,102 @@
       </div>
     </div>
 
+    <!-- Super Admin: manage Platform Tools users & tiles -->
+    <div class="tool-card card-mentor tile-hidden" id="tile-admin-users" onclick="window.location.href='/admin/users'">
+      <div class="card-glow"></div>
+      <div class="card-top-bar"></div>
+      <div class="card-body">
+        <div class="card-header-row">
+          <div class="card-icon-wrap">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </div>
+          <div class="card-badge badge-mentor"><div class="badge-dot"></div>Super Admin</div>
+        </div>
+        <div class="card-module-label">Admin Module</div>
+        <div class="card-title">User &amp; Tile Admin</div>
+        <div class="card-desc">Create users, reset passwords, and choose which Platform Tools tiles each account can see.</div>
+        <div class="card-features">
+          <span class="feature-tag">Users</span>
+          <span class="feature-tag">Passwords</span>
+          <span class="feature-tag">Per-user tiles</span>
+        </div>
+        <div class="card-footer">
+          <div class="card-meta">/admin/users</div>
+          <div class="card-arrow">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tool-card card-mentor card-cyan tile-hidden" id="tile-admin-audit" onclick="window.location.href='/admin/audit'">
+      <div class="card-glow"></div>
+      <div class="card-top-bar"></div>
+      <div class="card-body">
+        <div class="card-header-row">
+          <div class="card-icon-wrap">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <path d="M14 2v6h6"/>
+              <path d="M16 13H8M16 17H8M10 9H8"/>
+            </svg>
+          </div>
+          <div class="card-badge badge-mentor"><div class="badge-dot"></div>Super Admin</div>
+        </div>
+        <div class="card-module-label">Admin Module</div>
+        <div class="card-title">Action Audit Log</div>
+        <div class="card-desc">See who ran tool actions and which support case number they entered for each lookup.</div>
+        <div class="card-features">
+          <span class="feature-tag">Per user</span>
+          <span class="feature-tag">Case number</span>
+          <span class="feature-tag">Tool actions</span>
+        </div>
+        <div class="card-footer">
+          <div class="card-meta">/admin/audit</div>
+          <div class="card-arrow">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tool-card card-mentor card-cyan tile-hidden" id="tile-admin-audit-dashboard" onclick="window.location.href='/admin/audit-dashboard'">
+      <div class="card-glow"></div>
+      <div class="card-top-bar"></div>
+      <div class="card-body">
+        <div class="card-header-row">
+          <div class="card-icon-wrap">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M3 3v18h18"/>
+              <path d="M7 14l3-3 3 2 5-6"/>
+              <path d="M18 7h3v3"/>
+            </svg>
+          </div>
+          <div class="card-badge badge-mentor"><div class="badge-dot"></div>Super Admin</div>
+        </div>
+        <div class="card-module-label">Admin Analytics</div>
+        <div class="card-title">Audit Usage Dashboard</div>
+        <div class="card-desc">Power BI–style report: which engineers use tools the most, tool mix, daily trends, and hottest cases.</div>
+        <div class="card-features">
+          <span class="feature-tag">Leaderboard</span>
+          <span class="feature-tag">Charts</span>
+          <span class="feature-tag">Trends</span>
+        </div>
+        <div class="card-footer">
+          <div class="card-meta">/admin/audit-dashboard</div>
+          <div class="card-arrow">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </section>
-
-<!-- ── FEATURE STRIP ─────────────────────────────────────────────────── -->
 <div class="feature-stripe reveal">
   <div class="feature-stripe-inner">
     <div class="feature-item">
@@ -2067,6 +2153,65 @@
 <div id="toast"></div>
 
 <script>
+  /* ── Platform Tools auth: show tiles for this user only ── */
+  (async function bootstrapAuth() {
+    const TILE_IDS = [
+      "device", "sub", "user", "roles", "sso-tools", "serial-checker",
+      "humio-rpl", "mentor-tool", "feedback-inbox", "dsat-analyzer"
+    ];
+    try {
+      const res = await fetch("/api/auth/me", { credentials: "include" });
+      if (res.status === 401) {
+        window.location.replace("/login?next=" + encodeURIComponent(window.location.pathname));
+        return;
+      }
+      const data = await res.json();
+      if (!data || !data.authenticated) {
+        window.location.replace("/login?next=/GreenLakeTools.html");
+        return;
+      }
+      if (data.must_change_password) {
+        window.location.replace("/change-password");
+        return;
+      }
+      const allowed = new Set(data.tiles || []);
+      TILE_IDS.forEach(function (id) {
+        const el = document.getElementById("tile-" + id);
+        if (!el) return;
+        if (allowed.has(id)) {
+          el.classList.remove("tile-hidden");
+          el.style.display = "";
+        } else {
+          el.classList.add("tile-hidden");
+          el.style.display = "none";
+        }
+      });
+      const adminTile = document.getElementById("tile-admin-users");
+      const auditTile = document.getElementById("tile-admin-audit");
+      const auditDashTile = document.getElementById("tile-admin-audit-dashboard");
+      [adminTile, auditTile, auditDashTile].forEach(function (el) {
+        if (!el) return;
+        if (data.is_super_admin) {
+          el.classList.remove("tile-hidden");
+          el.style.display = "";
+        } else {
+          el.classList.add("tile-hidden");
+          el.style.display = "none";
+        }
+      });
+      const chip = document.getElementById("userChip");
+      const chipName = document.getElementById("userChipName");
+      const logoutBtn = document.getElementById("logoutBtn");
+      if (chip && chipName) {
+        chipName.textContent = data.display_name || data.username || "";
+        chip.style.display = "";
+      }
+      if (logoutBtn) logoutBtn.style.display = "";
+    } catch (err) {
+      window.location.replace("/login?next=/GreenLakeTools.html");
+    }
+  })();
+
   /* ── Cursor glow ─────────────────────────────────────────── */
   const glow = document.getElementById('cursorGlow');
   document.addEventListener('mousemove', e => {

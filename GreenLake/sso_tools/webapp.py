@@ -304,22 +304,103 @@ def build_sso_tools_app() -> Flask:
             with_groups=True,
         )
 
+    def _audit_helpers():
+        import sys
+        from pathlib import Path
+
+        root = Path(__file__).resolve().parents[1]
+        if str(root) not in sys.path:
+            sys.path.insert(0, str(root))
+        from platform_audit import require_case_number, log_from_request
+
+        return require_case_number, log_from_request
+
     @app.post("/api/generate")
     def api_generate():
+        require_case_number, log_from_request = _audit_helpers()
         payload = request.get_json(silent=True) or {}
+        case_number, err = require_case_number(payload)
+        if err:
+            return err
         try:
             result = build_role_string(payload)
         except ValueError as err:
             return jsonify({"ok": False, "error": str(err)}), 400
+        audit_in = {
+            k: payload.get(k)
+            for k in (
+                "workspace_id",
+                "group_id",
+                "role",
+                "scope",
+                "services",
+                "workspaces",
+                "with_org",
+                "organization_id",
+                "organization_group_id",
+                "type",
+                "scope_target",
+            )
+            if k in payload
+        }
+        log_from_request(
+            tool="sso-tools",
+            action="generate",
+            case_number=case_number,
+            detail="okta role string",
+            status="ok",
+            request_input=audit_in,
+            response_output={"result": result},
+        )
         return jsonify({"ok": True, "result": result})
+
+    @app.post("/api/audit")
+    def api_audit():
+        """Log a client-side SSO action (e.g. with-groups generate) with case number."""
+        require_case_number, log_from_request = _audit_helpers()
+        payload = request.get_json(silent=True) or {}
+        case_number, err = require_case_number(payload)
+        if err:
+            return err
+        action = _clean(payload.get("action")) or "generate"
+        detail = _clean(payload.get("detail")) or "okta with-groups"
+        log_from_request(
+            tool="sso-tools",
+            action=action,
+            case_number=case_number,
+            detail=detail,
+            status="ok",
+            request_input=payload.get("request_input"),
+            response_output=payload.get("response_output"),
+        )
+        return jsonify({"ok": True})
 
     @app.post("/api/export/<fmt>")
     def api_export(fmt: str):
+        require_case_number, log_from_request = _audit_helpers()
         payload = request.get_json(silent=True) or {}
+        case_number, err = require_case_number(payload)
+        if err:
+            return err
         try:
             result = build_role_string(payload)
         except ValueError as err:
             return jsonify({"ok": False, "error": str(err)}), 400
+
+        log_from_request(
+            tool="sso-tools",
+            action="export",
+            case_number=case_number,
+            detail=f"format={fmt}",
+            status="ok",
+            request_input={
+                "format": fmt,
+                "workspaces": payload.get("workspaces"),
+                "role": payload.get("role"),
+                "scope": payload.get("scope"),
+            },
+            response_output={"result": result},
+        )
 
         fmt = fmt.lower()
         if fmt == "txt":
@@ -338,6 +419,7 @@ def build_sso_tools_app() -> Flask:
                     "services": payload.get("services") or [],
                     "workspaces": payload.get("workspaces"),
                     "generated_string": result,
+                    "case_number": case_number,
                 },
                 indent=2,
             )

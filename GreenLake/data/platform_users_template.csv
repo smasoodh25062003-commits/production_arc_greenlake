@@ -1,0 +1,4 @@
+username,password,display_name,role,enabled,tiles
+jdoe,ChangeMe123!,Jane Doe,user,1,"device|sub|user"
+asmith,TempPass99,Alex Smith,user,1,"roles|sso-tools"
+mentor1,Welcome1!,Mentor One,user,1,mentor-tool

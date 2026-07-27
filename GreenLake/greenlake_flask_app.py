@@ -12,6 +12,8 @@ from rolesApp import roles_bp
 from serialCheckerApp import serial_checker_bp
 from humioApp import humio_bp
 from dsatApp import dsat_bp
+from platform_auth import platform_auth_bp, install_auth_guards
+from platform_audit import platform_audit_bp
 from sso_tools.webapp import build_sso_tools_app
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -33,6 +35,8 @@ def build_flask_app(*, mount_sso_via_dispatcher: bool = True) -> Flask:
 
     CORS(app)
 
+    app.register_blueprint(platform_auth_bp)
+    app.register_blueprint(platform_audit_bp)
     app.register_blueprint(device_bp)
     app.register_blueprint(subscription_bp)
     app.register_blueprint(userbase_bp)
@@ -41,6 +45,8 @@ def build_flask_app(*, mount_sso_via_dispatcher: bool = True) -> Flask:
     app.register_blueprint(serial_checker_bp)
     app.register_blueprint(humio_bp)
     app.register_blueprint(dsat_bp)
+
+    install_auth_guards(app)
 
     @app.route("/")
     def home():
@@ -103,6 +109,58 @@ def build_flask_app(*, mount_sso_via_dispatcher: bool = True) -> Flask:
 
     if mount_sso_via_dispatcher:
         sso = build_sso_tools_app()
-        app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {"/sso-tools": sso})
+
+        def _sso_guard(environ, start_response):
+            """Require Platform Tools session + sso-tools tile before SSO app."""
+            # Build a minimal request context for cookie reading is awkward in raw WSGI;
+            # parse Cookie header for pt_session and verify via platform_auth helpers.
+            from platform_auth import (
+                SESSION_COOKIE,
+                SESSION_MAX_AGE,
+                _serializer,
+                get_user_record,
+                is_super_admin,
+                ALL_TILE_IDS,
+            )
+            from itsdangerous import BadSignature, SignatureExpired
+            from urllib.parse import quote
+
+            raw = environ.get("HTTP_COOKIE") or ""
+            token = None
+            for part in raw.split(";"):
+                part = part.strip()
+                if part.startswith(SESSION_COOKIE + "="):
+                    token = part[len(SESSION_COOKIE) + 1 :]
+                    break
+            allowed = False
+            must_change = False
+            if token:
+                try:
+                    data = _serializer().loads(token, max_age=SESSION_MAX_AGE)
+                    if isinstance(data, dict) and data.get("username"):
+                        record = get_user_record(data["username"])
+                        if record and record.get("enabled"):
+                            must_change = bool(record.get("must_change_password"))
+                            if is_super_admin(record) or "sso-tools" in (record.get("tiles") or []):
+                                allowed = True
+                except (BadSignature, SignatureExpired, Exception):
+                    allowed = False
+            if must_change:
+                loc = "/change-password"
+                start_response(
+                    "302 Found",
+                    [("Location", loc), ("Content-Type", "text/plain")],
+                )
+                return [b"Password change required"]
+            if not allowed:
+                loc = "/login?next=" + quote("/sso-tools/")
+                start_response(
+                    "302 Found",
+                    [("Location", loc), ("Content-Type", "text/plain")],
+                )
+                return [b"Authentication required"]
+            return sso(environ, start_response)
+
+        app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {"/sso-tools": _sso_guard})
 
     return app

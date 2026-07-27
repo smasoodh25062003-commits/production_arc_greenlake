@@ -4,7 +4,7 @@
   <script src="/greenlake-theme.js"></script>
   <link rel="stylesheet" href="/greenlake-theme.css" />
   <script src="/greenlake-feedback.js" defer></script>
-  <script src="/greenlake-usage.js" defer></script>
+  <script src="/greenlake-case-audit.js"></script>
 
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -556,6 +556,8 @@ function stopFetch() {
 async function runFetch() {
   const username = document.getElementById('username-input').value.trim();
   if (!username) { showToast('Please enter a username (HPE email).', 'error'); return; }
+  const caseNumber = await window.promptCaseNumber();
+  if (!caseNumber) return;
   if (currentAbortController) currentAbortController.abort();
   currentAbortController = new AbortController();
   document.getElementById('empty-state').style.display = 'none';
@@ -565,7 +567,7 @@ async function runFetch() {
   try {
     const res = await fetch(`${API_BASE}/workspace-stream`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ parsed_headers: state.parsedHeaders, username }),
+      body: JSON.stringify({ parsed_headers: state.parsedHeaders, username, case_number: caseNumber }),
       signal: currentAbortController.signal,
     });
     if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'API error'); }

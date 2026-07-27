@@ -88,6 +88,12 @@ def humio_health():
 def humio_rpl_query():
     _reload_env()
     body = request.get_json(silent=True) or {}
+    from platform_audit import require_case_number, log_from_request
+
+    case_number, err = require_case_number(body)
+    if err:
+        return err
+
     customer_id = (body.get("customer_id") or "").strip()
     if not customer_id:
         return jsonify({"error": "Please enter a customer ID."}), 400
@@ -107,6 +113,8 @@ def humio_rpl_query():
                 "(or paste a token in the form)."
             )
         }), 400
+
+    audit_in = {"customer_id": customer_id, "start": start}
 
     base_url = (os.environ.get("HUMIO_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
     repository = os.environ.get("HUMIO_REPOSITORY") or DEFAULT_REPOSITORY
@@ -159,10 +167,21 @@ def humio_rpl_query():
     if not isinstance(events, list):
         return jsonify({"error": "Unexpected Humio response shape (expected a list of events)."}), 502
 
-    return jsonify({
+    result = {
         "customer_id": customer_id,
         "repository": repository,
         "start": start,
         "count": len(events),
         "events": events,
-    })
+    }
+    from platform_audit import summarize_list_payload
+    log_from_request(
+        tool="humio-rpl",
+        action="query",
+        case_number=case_number,
+        detail=f"customer_id={customer_id} start={start} count={len(events)}",
+        status="ok",
+        request_input=audit_in,
+        response_output=summarize_list_payload(result),
+    )
+    return jsonify(result)

@@ -197,12 +197,25 @@ def process_workspace(workspace_id, extra_headers):
 
 
 # ─── Routes ───────────────────────────────────────────────────────────────────
+def _require_case(body: dict):
+    from platform_audit import require_case_number
+
+    return require_case_number(body)
+
+
 @device_bp.route("/api/lookup", methods=["POST"])
 def lookup():
-    body          = request.get_json(force=True)
+    body          = request.get_json(force=True) or {}
+    case_number, err = _require_case(body)
+    if err:
+        return err
     raw_input     = body.get("devices", "")
     lookup_type   = body.get("type", "serial")
     extra_headers = body.get("parsed_headers", {}) or {}
+
+    from platform_audit import log_from_request, summarize_list_payload
+
+    audit_in = {"type": lookup_type, "devices": raw_input}
 
     if lookup_type == "workspace":
         workspace_ids = [d.strip() for d in raw_input.replace("\n", ",").split(",") if d.strip()]
@@ -214,9 +227,19 @@ def lookup():
             if not df.empty:
                 all_records.extend(df.to_dict(orient="records"))
         found = len(all_records)
-        return jsonify({"total": found, "found": found, "missing_count": 0,
-                        "found_pct": 100.0 if found else 0, "missing_pct": 0,
-                        "devices": all_records, "missing": []})
+        result = {"total": found, "found": found, "missing_count": 0,
+                  "found_pct": 100.0 if found else 0, "missing_pct": 0,
+                  "devices": all_records, "missing": []}
+        log_from_request(
+            tool="device",
+            action="lookup",
+            case_number=case_number,
+            detail=f"type=workspace count={len(workspace_ids)} found={found}",
+            status="ok",
+            request_input=audit_in,
+            response_output=summarize_list_payload(result),
+        )
+        return jsonify(result)
 
     device_list = [d.strip() for d in raw_input.replace("\n", ",").split(",") if d.strip()]
     if not device_list:
@@ -225,15 +248,28 @@ def lookup():
     records     = df.to_dict(orient="records") if not df.empty else []
     total       = len(device_list)
     found       = len(records)
-    return jsonify({"total": total, "found": found, "missing_count": len(missing),
-                    "found_pct":   round(found          / total * 100, 1) if total else 0,
-                    "missing_pct": round(len(missing)   / total * 100, 1) if total else 0,
-                    "devices": records, "missing": missing})
+    result = {"total": total, "found": found, "missing_count": len(missing),
+              "found_pct":   round(found          / total * 100, 1) if total else 0,
+              "missing_pct": round(len(missing)   / total * 100, 1) if total else 0,
+              "devices": records, "missing": missing}
+    log_from_request(
+        tool="device",
+        action="lookup",
+        case_number=case_number,
+        detail=f"type={lookup_type} queried={total} found={found} missing={len(missing)}",
+        status="ok",
+        request_input=audit_in,
+        response_output=summarize_list_payload(result),
+    )
+    return jsonify(result)
 
 
 @device_bp.route("/api/export", methods=["POST"])
 def export():
-    body          = request.get_json(force=True)
+    body          = request.get_json(force=True) or {}
+    case_number, err = _require_case(body)
+    if err:
+        return err
     raw_input     = body.get("devices", "")
     lookup_type   = body.get("type", "serial")
     extra_headers = body.get("parsed_headers", {}) or {}
@@ -241,6 +277,8 @@ def export():
     columns       = body.get("columns", None)
     COL_ORDER     = ['Serial Number','MAC Address','Entitlement ID','Device Type',
                      'Device Model','Part Number','Folder Name','Workspace ID','Workspace Name']
+
+    from platform_audit import log_from_request
 
     if lookup_type == "workspace":
         workspace_ids = [d.strip() for d in raw_input.replace("\n", ",").split(",") if d.strip()]
@@ -266,6 +304,20 @@ def export():
                 if valid_cols:
                     out_df = out_df[valid_cols]
 
+    log_from_request(
+        tool="device",
+        action="export",
+        case_number=case_number,
+        detail=f"type={lookup_type} export={export_type} rows={len(out_df)}",
+        status="ok",
+        request_input={
+            "type": lookup_type,
+            "export": export_type,
+            "devices": [d.strip() for d in raw_input.replace("\n", ",").split(",") if d.strip()],
+            "columns": columns,
+        },
+        response_output={"rows": len(out_df), "export": export_type, "format": "csv"},
+    )
     buf = io.StringIO()
     out_df.to_csv(buf, index=False)
     return Response(buf.getvalue(), mimetype="text/csv",
@@ -274,10 +326,17 @@ def export():
 
 @device_bp.route("/api/lookup-stream", methods=["POST"])
 def lookup_stream():
-    body          = request.get_json(force=True)
+    body          = request.get_json(force=True) or {}
+    case_number, err = _require_case(body)
+    if err:
+        return err
     raw_input     = body.get("devices", "")
     lookup_type   = body.get("type", "serial")
     extra_headers = body.get("parsed_headers", {}) or {}
+
+    from platform_audit import log_from_request, capture_audit_actor
+
+    actor = capture_audit_actor()
 
     # ── Workspace mode ────────────────────────────────────────────────────────
     if lookup_type == "workspace":
@@ -286,6 +345,8 @@ def lookup_stream():
             return jsonify({"error": "No workspace ID provided"}), 400
 
         def generate_workspace():
+            from platform_audit import summarize_list_payload
+
             all_records, seen = [], set()
             for ws_idx, workspace_id in enumerate(workspace_ids):
                 page     = 0
@@ -321,6 +382,16 @@ def lookup_stream():
                       "found_pct": 100.0 if found else 0, "missing_pct": 0,
                       "devices": records_list,
                       "missing": []}
+            log_from_request(
+                tool="device",
+                action="lookup",
+                case_number=case_number,
+                detail=f"type=workspace found={found} stream=1",
+                status="ok",
+                actor=actor,
+                request_input={"type": "workspace", "devices": workspace_ids},
+                response_output=summarize_list_payload(result),
+            )
             yield f"data: {json.dumps({'type':'progress','pct':100,'queried':found,'total':found,'found':found,'batch':1,'total_batches':1})}\n\n"
             yield f"data: {json.dumps({'type':'done','data':result})}\n\n"
 
@@ -337,6 +408,8 @@ def lookup_stream():
     total_batches = (total_devices + BATCH_SIZE - 1) // BATCH_SIZE
 
     def generate():
+        from platform_audit import summarize_list_payload
+
         platform_device_records, missing_devices = [], []
 
         for batch_idx, batch_start in enumerate(range(0, total_devices, BATCH_SIZE)):
@@ -375,6 +448,16 @@ def lookup_stream():
             "devices":       records,
             "missing":       missing_devices,
         }
+        log_from_request(
+            tool="device",
+            action="lookup",
+            case_number=case_number,
+            detail=f"type={lookup_type} queried={total_devices} found={found} missing={missing_count} stream=1",
+            status="ok",
+            actor=actor,
+            request_input={"type": lookup_type, "devices": device_list},
+            response_output=summarize_list_payload(result),
+        )
         yield f"data: {json.dumps({'type':'progress','pct':100,'queried':total_devices,'total':total_devices,'found':found,'batch':total_batches,'total_batches':total_batches})}\n\n"
         yield f"data: {json.dumps({'type':'done','data':result})}\n\n"
 

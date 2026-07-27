@@ -34,7 +34,79 @@ from sso_tools.webapp import build_sso_tools_app
 
 _flask = build_flask_app(mount_sso_via_dispatcher=False)
 _flask_asgi = WsgiToAsgi(_flask)
-_sso_asgi = WsgiToAsgi(build_sso_tools_app())
+_sso_raw = WsgiToAsgi(build_sso_tools_app())
+
+
+async def _sso_asgi(scope, receive, send):
+    """Require Platform Tools session + sso-tools tile (or super_admin)."""
+    if scope["type"] != "http":
+        await _sso_raw(scope, receive, send)
+        return
+
+    from urllib.parse import quote
+
+    from itsdangerous import BadSignature, SignatureExpired
+    from platform_auth import (
+        SESSION_COOKIE,
+        SESSION_MAX_AGE,
+        _serializer,
+        get_user_record,
+        is_super_admin,
+    )
+
+    headers = {k.decode().lower(): v.decode() for k, v in scope.get("headers") or []}
+    cookie_header = headers.get("cookie", "")
+    token = None
+    for part in cookie_header.split(";"):
+        part = part.strip()
+        if part.startswith(SESSION_COOKIE + "="):
+            token = part[len(SESSION_COOKIE) + 1 :]
+            break
+
+    allowed = False
+    must_change = False
+    if token:
+        try:
+            data = _serializer().loads(token, max_age=SESSION_MAX_AGE)
+            if isinstance(data, dict) and data.get("username"):
+                record = get_user_record(data["username"])
+                if record and record.get("enabled"):
+                    must_change = bool(record.get("must_change_password"))
+                    if is_super_admin(record) or "sso-tools" in (record.get("tiles") or []):
+                        allowed = True
+        except (BadSignature, SignatureExpired, Exception):
+            allowed = False
+
+    if must_change:
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 302,
+                "headers": [
+                    (b"location", b"/change-password"),
+                    (b"content-type", b"text/plain"),
+                ],
+            }
+        )
+        await send({"type": "http.response.body", "body": b"Password change required"})
+        return
+
+    if not allowed:
+        loc = "/login?next=" + quote("/sso-tools/")
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 302,
+                "headers": [
+                    (b"location", loc.encode()),
+                    (b"content-type", b"text/plain"),
+                ],
+            }
+        )
+        await send({"type": "http.response.body", "body": b"Authentication required"})
+        return
+
+    await _sso_raw(scope, receive, send)
 
 
 class _LazyGldashASGI:
@@ -46,6 +118,49 @@ class _LazyGldashASGI:
         self._inner = None
 
     async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            from itsdangerous import BadSignature, SignatureExpired
+            from platform_auth import (
+                SESSION_COOKIE,
+                SESSION_MAX_AGE,
+                _serializer,
+                get_user_record,
+            )
+
+            headers = {k.decode().lower(): v.decode() for k, v in scope.get("headers") or []}
+            cookie_header = headers.get("cookie", "")
+            token = None
+            for part in cookie_header.split(";"):
+                part = part.strip()
+                if part.startswith(SESSION_COOKIE + "="):
+                    token = part[len(SESSION_COOKIE) + 1 :]
+                    break
+            if token:
+                try:
+                    data = _serializer().loads(token, max_age=SESSION_MAX_AGE)
+                    if isinstance(data, dict) and data.get("username"):
+                        record = get_user_record(data["username"])
+                        if record and record.get("enabled") and record.get("must_change_password"):
+                            await send(
+                                {
+                                    "type": "http.response.start",
+                                    "status": 302,
+                                    "headers": [
+                                        (b"location", b"/change-password"),
+                                        (b"content-type", b"text/plain"),
+                                    ],
+                                }
+                            )
+                            await send(
+                                {
+                                    "type": "http.response.body",
+                                    "body": b"Password change required",
+                                }
+                            )
+                            return
+                except (BadSignature, SignatureExpired, Exception):
+                    pass
+
         if self._inner is None:
             from app.main import app as inner_app
 

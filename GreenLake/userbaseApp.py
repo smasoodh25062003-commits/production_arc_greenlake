@@ -106,18 +106,27 @@ def build_hierarchy(all_customers, status_map):
 # ─── Routes ───────────────────────────────────────────────────────────────────
 @userbase_bp.route("/api/workspace-stream", methods=["POST"])
 def workspace_stream():
-    body = request.get_json(force=True)
+    body = request.get_json(force=True) or {}
+    from platform_audit import require_case_number, log_from_request, capture_audit_actor
+
+    case_number, err = require_case_number(body)
+    if err:
+        return err
+
     parsed_headers = body.get("parsed_headers", {})
     username = (body.get("username") or "").strip()
 
     if not username:
         return jsonify({"error": "Username is required."}), 400
 
+    actor = capture_audit_actor()
     extra_headers = dict(parsed_headers) if parsed_headers else {}
     extra_headers.setdefault("Accept", "application/json")
     extra_headers.setdefault("Content-Type", "application/json")
 
     def generate():
+        from platform_audit import summarize_list_payload
+
         all_customers = []
         offset = 0
         total_count = 0
@@ -166,8 +175,19 @@ def workspace_stream():
         total_workspaces = len(all_customers)
         if total_workspaces == 0:
             hierarchy = build_hierarchy([], {})
+            out = {"hierarchy": hierarchy, "total": 0, "standalone_count": 0, "msp_count": 0, "tenant_count": 0}
+            log_from_request(
+                tool="user",
+                action="lookup",
+                case_number=case_number,
+                detail=f"username={username} total=0",
+                status="ok",
+                request_input={"username": username},
+                response_output=out,
+                actor=actor,
+            )
             yield "data: " + json.dumps({"type": "progress", "phase": "status", "pct": 100, "processed": 0, "total": 0}) + "\n\n"
-            payload = {"type": "done", "data": {"hierarchy": hierarchy, "total": 0, "standalone_count": 0, "msp_count": 0, "tenant_count": 0}}
+            payload = {"type": "done", "data": out}
             yield "data: " + json.dumps(payload) + "\n\n"
             return
 
@@ -195,8 +215,35 @@ def workspace_stream():
         msp_count = len(hierarchy["msp_dict"])
         tenant_count = sum(len(v) for v in hierarchy["tenant_map"].values())
 
+        out = {
+            "hierarchy": hierarchy,
+            "total": total_workspaces,
+            "standalone_count": sa_count,
+            "msp_count": msp_count,
+            "tenant_count": tenant_count,
+        }
+        # Hierarchy can be large — keep counts + truncated structure
+        audit_out = {
+            "total": total_workspaces,
+            "standalone_count": sa_count,
+            "msp_count": msp_count,
+            "tenant_count": tenant_count,
+            "standalone_sample": (hierarchy.get("standalone") or [])[:15],
+            "msp_ids": list((hierarchy.get("msp_dict") or {}).keys())[:30],
+        }
+        log_from_request(
+            tool="user",
+            action="lookup",
+            case_number=case_number,
+            detail=f"username={username} total={total_workspaces} msp={msp_count} tenant={tenant_count}",
+            status="ok",
+            request_input={"username": username},
+            response_output=audit_out,
+            actor=actor,
+        )
+
         yield "data: " + json.dumps({"type": "progress", "phase": "status", "pct": 100, "processed": total_workspaces, "total": total_workspaces}) + "\n\n"
-        payload = {"type": "done", "data": {"hierarchy": hierarchy, "total": total_workspaces, "standalone_count": sa_count, "msp_count": msp_count, "tenant_count": tenant_count}}
+        payload = {"type": "done", "data": out}
         yield "data: " + json.dumps(payload) + "\n\n"
 
     return Response(

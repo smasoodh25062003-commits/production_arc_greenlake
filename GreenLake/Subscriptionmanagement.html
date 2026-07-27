@@ -4,7 +4,6 @@
   <script src="/greenlake-theme.js"></script>
   <link rel="stylesheet" href="/greenlake-theme.css" />
   <script src="/greenlake-feedback.js" defer></script>
-  <script src="/greenlake-usage.js" defer></script>
 
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -947,6 +946,22 @@
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
+<!-- Case number (required for audit) -->
+<div id="caseModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);align-items:center;justify-content:center;padding:20px;">
+  <div style="width:100%;max-width:420px;background:var(--panel,#fff);border:1px solid var(--border,#d5d5d5);border-radius:10px;padding:24px 22px;box-shadow:0 12px 40px rgba(0,0,0,.18);">
+    <div style="font-size:1.05rem;font-weight:700;margin-bottom:6px;color:var(--text,#2c2c2c);">Case number required</div>
+    <p style="font-size:.88rem;color:var(--muted,#666);margin-bottom:16px;line-height:1.45;">Enter the support case number for this lookup. It is saved in the audit log.</p>
+    <label for="caseNumberInput" style="display:block;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;color:var(--text,#444);">Case number</label>
+    <input id="caseNumberInput" type="text" maxlength="64" placeholder="e.g. 5301234567" autocomplete="off"
+      style="width:100%;padding:11px 12px;border:1px solid var(--border,#d5d5d5);border-radius:8px;font-family:inherit;font-size:.95rem;background:var(--surface,#f7f7f7);color:var(--text,#2c2c2c);margin-bottom:8px;" />
+    <div id="caseNumberError" style="display:none;color:#a82a2a;font-size:.82rem;margin-bottom:10px;"></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="closeCaseModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" id="caseModalConfirm" onclick="confirmCaseAndLookup()">Continue lookup</button>
+    </div>
+  </div>
+</div>
+
 <script>
   /* ── Cursor glow ─────────────────────────────────────────── */
   const glow = document.getElementById('cursorGlow');
@@ -1332,6 +1347,47 @@ function resetResultState() {
 async function runLookup() {
   const input = document.getElementById('device-input').value.trim();
   if (!input) { showToast('Please enter at least one subscription key.'); return; }
+  openCaseModal();
+}
+
+function openCaseModal() {
+  const modal = document.getElementById('caseModal');
+  const err = document.getElementById('caseNumberError');
+  const input = document.getElementById('caseNumberInput');
+  err.style.display = 'none';
+  err.textContent = '';
+  modal.style.display = 'flex';
+  setTimeout(() => { input.focus(); input.select(); }, 50);
+}
+
+function closeCaseModal() {
+  document.getElementById('caseModal').style.display = 'none';
+}
+
+async function confirmCaseAndLookup() {
+  const caseInput = document.getElementById('caseNumberInput');
+  const err = document.getElementById('caseNumberError');
+  const caseNumber = (caseInput.value || '').trim();
+  if (!caseNumber) {
+    err.textContent = 'Case number is compulsory.';
+    err.style.display = 'block';
+    caseInput.focus();
+    return;
+  }
+  closeCaseModal();
+  await executeLookup(caseNumber);
+}
+
+document.addEventListener('keydown', (e) => {
+  const modal = document.getElementById('caseModal');
+  if (!modal || modal.style.display !== 'flex') return;
+  if (e.key === 'Escape') closeCaseModal();
+  if (e.key === 'Enter') { e.preventDefault(); confirmCaseAndLookup(); }
+});
+
+async function executeLookup(caseNumber) {
+  const input = document.getElementById('device-input').value.trim();
+  if (!input) { showToast('Please enter at least one subscription key.'); return; }
   if (currentAbortController) currentAbortController.abort();
   currentAbortController = new AbortController();
   resetResultState();
@@ -1340,10 +1396,15 @@ async function runLookup() {
   try {
     const res = await fetch(`${API_BASE}/subscription-stream`, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({keys:input, lookup_type:state.lookupType, parsed_headers:state.parsedHeaders}),
+      body:JSON.stringify({
+        keys:input,
+        lookup_type:state.lookupType,
+        parsed_headers:state.parsedHeaders,
+        case_number: caseNumber
+      }),
       signal:currentAbortController.signal,
     });
-    if (!res.ok) { const err = await res.json(); throw new Error(err.error||'API error'); }
+    if (!res.ok) { const err = await res.json().catch(()=>({})); throw new Error(err.error||'API error'); }
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';

@@ -111,7 +111,14 @@ def parse_sub(sub, key_input=None):
 # ─── Routes ───────────────────────────────────────────────────────────────────
 @subscription_bp.route("/api/subscription-stream", methods=["POST"])
 def subscription_stream():
-    body          = request.get_json(force=True)
+    body          = request.get_json(force=True) or {}
+    from platform_audit import require_case_number, log_from_request, capture_audit_actor
+
+    case_number, err = require_case_number(body)
+    if err:
+        return err
+
+    actor = capture_audit_actor()
     raw_keys      = body.get("keys", "")
     extra_headers = body.get("parsed_headers", {}) or {}
     lookup_type   = body.get("lookup_type", "subkey")
@@ -123,6 +130,8 @@ def subscription_stream():
             return jsonify({"error": "No workspace ID provided."}), 400
 
         def generate_workspace():
+            from platform_audit import summarize_list_payload
+
             results, seen = [], set()
 
             for ws_idx, workspace_id in enumerate(workspace_ids):
@@ -178,6 +187,16 @@ def subscription_stream():
                 "subscriptions": results,
                 "missing":       [],
             }
+            log_from_request(
+                tool="subscription",
+                action="lookup",
+                case_number=case_number,
+                detail=f"type=workspace count={len(workspace_ids)} found={total} stream=1",
+                status="ok",
+                request_input={"lookup_type": "workspace", "keys": workspace_ids},
+                response_output=summarize_list_payload(result),
+                actor=actor,
+            )
             yield f"data: {json.dumps({'type':'progress','pct':100,'queried':total,'total':total})}\n\n"
             yield f"data: {json.dumps({'type':'done','data':result})}\n\n"
 
@@ -213,6 +232,8 @@ def subscription_stream():
             return key, [], [key], None
 
     def generate():
+        from platform_audit import summarize_list_payload
+
         total_keys   = len(keys)
         results      = []
         missing_keys = []
@@ -265,6 +286,16 @@ def subscription_stream():
             "subscriptions": deduped,
             "missing":       missing_keys,
         }
+        log_from_request(
+            tool="subscription",
+            action="lookup",
+            case_number=case_number,
+            detail=f"type=subkey queried={len(keys)} found={len(deduped)} missing={missing_count} stream=1",
+            status="ok",
+            request_input={"lookup_type": "subkey", "keys": keys},
+            response_output=summarize_list_payload(result),
+            actor=actor,
+        )
         yield f"data: {json.dumps({'type':'progress','pct':100,'queried':total_keys,'total':total_keys})}\n\n"
         yield f"data: {json.dumps({'type':'done','data':result})}\n\n"
 

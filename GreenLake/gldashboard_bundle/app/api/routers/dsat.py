@@ -1,4 +1,4 @@
-"""Admin-only DSAT Alert Analyzer APIs (RBAC via /gldash session)."""
+"""DSAT Alert Analyzer APIs — auth via Platform Tools / gldash session (no separate admin RBAC)."""
 from __future__ import annotations
 
 import csv
@@ -9,8 +9,7 @@ from pathlib import Path
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 
-from app.auth.session import read_session
-from app.auth.users import role_gte
+from app.auth.session import read_session, user_has_platform_tile
 
 # GreenLake/ (sibling of gldashboard_bundle)
 _ROOT = Path(__file__).resolve().parents[4]
@@ -22,18 +21,18 @@ import dsatApp as dsat  # noqa: E402
 router = APIRouter()
 
 
-def _require_admin(request: Request) -> dict:
+def _require_access(request: Request) -> dict:
     user = read_session(request)
     if not user:
-        raise HTTPException(status_code=401, detail="Login required at /gldash/login")
-    if not role_gte(user.get("role", "viewer"), "admin"):
-        raise HTTPException(status_code=403, detail="Admin access required.")
+        raise HTTPException(status_code=401, detail="Login required at /login")
+    if not user_has_platform_tile(user, "dsat-analyzer"):
+        raise HTTPException(status_code=403, detail="You do not have access to this tool.")
     return user
 
 
 @router.post("/analyze")
 async def analyze(request: Request, files: list[UploadFile] = File(...)):
-    _require_admin(request)
+    _require_access(request)
     items: list[tuple[str, bytes]] = []
     for upload in files:
         if not upload or not upload.filename:
@@ -49,7 +48,7 @@ async def analyze(request: Request, files: list[UploadFile] = File(...)):
 
 @router.get("/history")
 async def history(request: Request, limit: int = 50):
-    _require_admin(request)
+    _require_access(request)
     limit = min(max(limit, 1), 200)
     items = dsat._list_alerts(limit=limit)
     return {"items": items, "total": len(dsat._list_alerts())}
@@ -57,19 +56,19 @@ async def history(request: Request, limit: int = 50):
 
 @router.get("/engineers")
 async def engineers(request: Request):
-    _require_admin(request)
+    _require_access(request)
     return dsat._engineer_rollup()
 
 
 @router.get("/dashboard")
 async def dashboard(request: Request):
-    _require_admin(request)
+    _require_access(request)
     return dsat.build_dashboard_payload()
 
 
 @router.get("/export.csv")
 async def export_csv(request: Request):
-    _require_admin(request)
+    _require_access(request)
     rows = dsat._flat_case_rows()
     buf = io.StringIO()
     fieldnames = [
@@ -107,7 +106,7 @@ async def export_csv(request: Request):
 
 @router.get("/export.xlsx")
 async def export_xlsx(request: Request):
-    _require_admin(request)
+    _require_access(request)
     import pandas as pd
 
     rows = dsat._flat_case_rows()
@@ -130,7 +129,7 @@ async def export_xlsx(request: Request):
 
 @router.get("/report/{entry_id}")
 async def report(request: Request, entry_id: str):
-    _require_admin(request)
+    _require_access(request)
     from werkzeug.utils import secure_filename
 
     data = dsat._get_alert(secure_filename(entry_id))

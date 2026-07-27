@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <script src="/greenlake-theme.js"></script>
+  <link rel="stylesheet" href="/greenlake-theme.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>User Admin — Platform Tools</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #f7f7f7;
+      color: #2c2c2c;
+      min-height: 100vh;
+      background-image:
+        radial-gradient(circle at 12% 10%, rgba(1, 169, 130, 0.08), transparent 40%),
+        radial-gradient(circle at 88% 90%, rgba(13, 122, 199, 0.06), transparent 40%);
+    }
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 28px; background: #fff; border-bottom: 1px solid #d5d5d5;
+      position: sticky; top: 0; z-index: 20;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      width: 36px; height: 36px; background: #01a982;
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 0.55rem; font-weight: 800;
+    }
+    .brand h1 { font-size: 1rem; font-weight: 700; }
+    .brand p {
+      font-family: 'JetBrains Mono', monospace; font-size: 0.6rem;
+      letter-spacing: 0.12em; text-transform: uppercase; color: #01a982;
+    }
+    .top-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .btn {
+      border: 1px solid #d5d5d5; background: #fff; color: #2c2c2c;
+      border-radius: 6px; padding: 8px 14px; font-size: 0.85rem; font-weight: 600;
+      cursor: pointer; font-family: inherit; text-decoration: none; display: inline-flex;
+      align-items: center; gap: 6px;
+    }
+    .btn:hover { border-color: #01a982; color: #00755a; }
+    .btn-primary { background: #01a982; border-color: #01a982; color: #fff; }
+    .btn-primary:hover { background: #00755a; border-color: #00755a; color: #fff; }
+    .btn-danger { color: #a82a2a; border-color: rgba(168,42,42,0.35); }
+    .btn-danger:hover { background: rgba(168,42,42,0.06); }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 28px 20px 60px; }
+    .panel {
+      background: #fff; border: 1px solid #d5d5d5; border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04); overflow: hidden;
+    }
+    .panel-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 20px; border-bottom: 1px solid #e8e8e8; gap: 12px; flex-wrap: wrap;
+    }
+    .panel-head h2 { font-size: 1.05rem; font-weight: 700; }
+    .panel-head p { font-size: 0.82rem; color: #666; margin-top: 4px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid #eee; font-size: 0.88rem; vertical-align: top; }
+    th {
+      background: #fafafa; font-size: 0.7rem; text-transform: uppercase;
+      letter-spacing: 0.06em; color: #666; font-weight: 700;
+    }
+    tr:last-child td { border-bottom: none; }
+    .pill {
+      display: inline-block; padding: 2px 8px; border-radius: 999px;
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.02em;
+    }
+    .pill-admin { background: rgba(1,169,130,0.12); color: #00755a; }
+    .pill-user { background: rgba(13,122,199,0.1); color: #0d7ac7; }
+    .pill-off { background: rgba(120,120,120,0.12); color: #666; }
+    .pill-on { background: rgba(1,169,130,0.12); color: #00755a; }
+    .tiles-mini { display: flex; flex-wrap: wrap; gap: 4px; max-width: 320px; }
+    .tile-chip {
+      font-size: 0.65rem; background: #f2f2f2; border: 1px solid #e0e0e0;
+      border-radius: 4px; padding: 2px 6px; color: #555;
+    }
+    .row-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    .empty { padding: 40px; text-align: center; color: #777; }
+    .banner {
+      display: none; margin-bottom: 16px; padding: 12px 14px; border-radius: 8px;
+      font-size: 0.88rem; font-weight: 500;
+    }
+    .banner.show { display: block; }
+    .banner.ok { background: rgba(1,169,130,0.1); border: 1px solid rgba(1,169,130,0.3); color: #00755a; }
+    .banner.err { background: rgba(198,62,62,0.08); border: 1px solid rgba(198,62,62,0.28); color: #a82a2a; }
+    .modal-backdrop {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+      z-index: 100; align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      width: 100%; max-width: 560px; background: #fff; border-radius: 10px;
+      border: 1px solid #d5d5d5; max-height: 90vh; overflow: auto;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+    }
+    .modal-head {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 16px 20px; border-bottom: 1px solid #eee;
+    }
+    .modal-head h3 { font-size: 1.05rem; }
+    .modal-body { padding: 20px; }
+    .modal-foot {
+      display: flex; justify-content: flex-end; gap: 8px;
+      padding: 14px 20px; border-top: 1px solid #eee;
+    }
+    .form-row { margin-bottom: 14px; }
+    .form-row label {
+      display: block; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.05em; margin-bottom: 6px; color: #444;
+    }
+    .form-row input, .form-row select {
+      width: 100%; padding: 10px 12px; border: 1px solid #d5d5d5; border-radius: 6px;
+      font-family: inherit; font-size: 0.9rem; background: #fafafa;
+    }
+    .form-row input:focus, .form-row select:focus {
+      outline: none; border-color: #01a982; box-shadow: 0 0 0 3px rgba(1,169,130,0.12);
+    }
+    .tile-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    }
+    @media (max-width: 560px) { .tile-grid { grid-template-columns: 1fr; } }
+    .tile-opt {
+      display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+      border: 1px solid #e4e4e4; border-radius: 6px; background: #fafafa;
+      font-size: 0.82rem; cursor: pointer;
+    }
+    .tile-opt:hover { border-color: #01a982; }
+    .close-x {
+      border: none; background: transparent; font-size: 1.4rem; cursor: pointer; color: #888; line-height: 1;
+    }
+    .who { font-size: 0.8rem; color: #666; }
+  </style>
+  <link rel="stylesheet" href="/platform-tools-dark.css" />
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark">GL</div>
+      <div>
+        <h1>Platform Tools Admin</h1>
+        <p>Users · Passwords · Tiles</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <span class="who" id="whoAmI"></span>
+      <button type="button" id="themeToggle" class="gl-theme-toggle" aria-label="Toggle theme">
+        <span class="theme-icon theme-icon-light" aria-hidden="true">&#9728;</span>
+        <span class="theme-icon theme-icon-dark" aria-hidden="true">&#9790;</span>
+      </button>
+      <a class="btn" href="/GreenLakeTools.html">← Tools</a>
+      <a class="btn" href="/logout">Logout</a>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="banner" id="banner"></div>
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Users</h2>
+          <p>Create accounts one-by-one or import many users from a CSV. Temporary passwords force change on first login.</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <a class="btn" href="/api/admin/users/csv-template" id="btnCsvTemplate">Download CSV template</a>
+          <button type="button" class="btn" id="btnImport">Import CSV</button>
+          <button type="button" class="btn btn-primary" id="btnCreate">+ New user</button>
+        </div>
+      </div>
+      <div id="tableWrap">
+        <div class="empty">Loading…</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modal" role="dialog" aria-modal="true">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="modalTitle">New user</h3>
+        <button type="button" class="close-x" id="modalClose" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="fMode" value="create" />
+        <div class="form-row" id="rowUsername">
+          <label for="fUsername">Username</label>
+          <input id="fUsername" autocomplete="off" />
+        </div>
+        <div class="form-row">
+          <label for="fDisplay">Display name</label>
+          <input id="fDisplay" autocomplete="off" />
+        </div>
+        <div class="form-row" id="rowPassword">
+          <label for="fPassword" id="fPasswordLabel">Temporary password</label>
+          <input id="fPassword" type="password" autocomplete="new-password" />
+          <p style="font-size:0.75rem;color:#777;margin-top:6px;" id="pwHint">
+            User must change this password on first login (shown twice with Show/Hide).
+          </p>
+        </div>
+        <div class="form-row">
+          <label for="fRole">Role</label>
+          <select id="fRole">
+            <option value="user">User</option>
+            <option value="super_admin">Super admin</option>
+          </select>
+        </div>
+        <div class="form-row" id="rowEnabled">
+          <label for="fEnabled">Status</label>
+          <select id="fEnabled">
+            <option value="1">Enabled</option>
+            <option value="0">Disabled</option>
+          </select>
+        </div>
+        <div class="form-row" id="rowTiles">
+          <label>Tiles</label>
+          <div class="tile-grid" id="tileGrid"></div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" id="modalCancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="modalSave">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="importModal" role="dialog" aria-modal="true">
+    <div class="modal">
+      <div class="modal-head">
+        <h3>Import users from CSV</h3>
+        <button type="button" class="close-x" id="importClose" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.88rem;color:#555;line-height:1.45;margin-bottom:14px;">
+          Required columns: <code>username</code>, <code>password</code>.
+          Optional: <code>display_name</code>, <code>role</code> (user / super_admin),
+          <code>enabled</code> (1/0), <code>tiles</code> (pipe-separated ids, e.g. device|sub|user).
+          Each new user must change their password on first login.
+        </p>
+        <div class="form-row">
+          <label for="csvFile">CSV file</label>
+          <input id="csvFile" type="file" accept=".csv,text/csv" />
+        </div>
+        <div id="importResult" style="display:none;margin-top:12px;font-size:0.85rem;"></div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn" id="importCancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="importRun">Upload &amp; create</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let TILES = [];
+    let USERS = [];
+    let editUsername = null;
+
+    const banner = document.getElementById("banner");
+    const modal = document.getElementById("modal");
+
+    function showBanner(msg, ok) {
+      banner.textContent = msg;
+      banner.className = "banner show " + (ok ? "ok" : "err");
+      setTimeout(function () { banner.classList.remove("show"); }, 4500);
+    }
+
+    async function api(path, opts) {
+      const res = await fetch(path, Object.assign({ credentials: "include" }, opts || {}));
+      const data = await res.json().catch(function () { return {}; });
+      if (res.status === 401) {
+        window.location.href = "/login?next=/admin/users";
+        throw new Error("auth");
+      }
+      if (res.status === 403) {
+        window.location.href = "/GreenLakeTools.html";
+        throw new Error("forbidden");
+      }
+      return { res: res, data: data };
+    }
+
+    function openModal(mode, user) {
+      document.getElementById("fMode").value = mode;
+      editUsername = user ? user.username : null;
+      document.getElementById("modalTitle").textContent =
+        mode === "create" ? "New user" : mode === "password" ? "Set password" : "Edit user";
+      document.getElementById("rowUsername").style.display = mode === "create" ? "" : "none";
+      document.getElementById("rowPassword").style.display = mode === "edit" ? "none" : "";
+      document.getElementById("rowEnabled").style.display = mode === "password" ? "none" : "";
+      document.getElementById("rowTiles").style.display = mode === "password" ? "none" : "";
+      document.getElementById("fRole").closest(".form-row").style.display = mode === "password" ? "none" : "";
+      document.getElementById("fDisplay").closest(".form-row").style.display = mode === "password" ? "none" : "";
+      document.getElementById("fPasswordLabel").textContent =
+        mode === "password" ? "Temporary password" : "Temporary password";
+      const pwHint = document.getElementById("pwHint");
+      if (pwHint) {
+        pwHint.style.display = mode === "edit" ? "none" : "";
+        pwHint.textContent =
+          mode === "password"
+            ? "User must change this password on next login."
+            : "User must change this password on first login.";
+      }
+      document.getElementById("fUsername").value = user ? user.username : "";
+      document.getElementById("fUsername").disabled = mode !== "create";
+      document.getElementById("fDisplay").value = user ? (user.display_name || "") : "";
+      document.getElementById("fPassword").value = "";
+      document.getElementById("fRole").value = user ? user.role : "user";
+      document.getElementById("fEnabled").value = user && !user.enabled ? "0" : "1";
+      const selected = new Set(user && user.tiles ? user.tiles : []);
+      document.querySelectorAll("#tileGrid input[type=checkbox]").forEach(function (cb) {
+        cb.checked = mode === "create" ? false : selected.has(cb.value);
+      });
+      modal.classList.add("open");
+    }
+
+    function closeModal() {
+      modal.classList.remove("open");
+    }
+
+    function renderTileGrid() {
+      const grid = document.getElementById("tileGrid");
+      grid.innerHTML = TILES.map(function (t) {
+        return (
+          '<label class="tile-opt"><input type="checkbox" value="' +
+          t.id +
+          '" /> ' +
+          t.label +
+          "</label>"
+        );
+      }).join("");
+    }
+
+    function selectedTiles() {
+      return Array.from(document.querySelectorAll("#tileGrid input:checked")).map(function (c) {
+        return c.value;
+      });
+    }
+
+    function renderUsers() {
+      const wrap = document.getElementById("tableWrap");
+      if (!USERS.length) {
+        wrap.innerHTML = '<div class="empty">No users yet.</div>';
+        return;
+      }
+      wrap.innerHTML =
+        "<table><thead><tr>" +
+        "<th>User</th><th>Role</th><th>Status</th><th>Tiles</th><th>Actions</th>" +
+        "</tr></thead><tbody>" +
+        USERS.map(function (u) {
+          const tiles = (u.tiles || [])
+            .map(function (id) {
+              const meta = TILES.find(function (t) { return t.id === id; });
+              return '<span class="tile-chip">' + (meta ? meta.label : id) + "</span>";
+            })
+            .join("");
+          return (
+            "<tr>" +
+            "<td><strong>" +
+            escapeHtml(u.username) +
+            "</strong><div style='color:#777;font-size:0.78rem;margin-top:2px'>" +
+            escapeHtml(u.display_name || "") +
+            "</div></td>" +
+            '<td><span class="pill ' +
+            (u.role === "super_admin" ? "pill-admin" : "pill-user") +
+            '">' +
+            (u.role === "super_admin" ? "Super admin" : "User") +
+            "</span></td>" +
+            '<td><span class="pill ' +
+            (u.enabled ? "pill-on" : "pill-off") +
+            '">' +
+            (u.enabled ? "Enabled" : "Disabled") +
+            "</span>" +
+            (u.must_change_password
+              ? ' <span class="pill" style="background:rgba(13,122,199,0.12);color:#0d7ac7;margin-left:4px">Must change PW</span>'
+              : "") +
+            "</td>" +
+            '<td><div class="tiles-mini">' +
+            (u.role === "super_admin" ? '<span class="tile-chip">All tiles</span>' : tiles || "<span style='color:#999'>—</span>") +
+            "</div></td>" +
+            '<td><div class="row-actions">' +
+            '<button type="button" class="btn" data-act="edit" data-u="' +
+            escapeAttr(u.username) +
+            '">Edit</button>' +
+            '<button type="button" class="btn" data-act="password" data-u="' +
+            escapeAttr(u.username) +
+            '">Password</button>' +
+            '<button type="button" class="btn btn-danger" data-act="delete" data-u="' +
+            escapeAttr(u.username) +
+            '">Delete</button>' +
+            "</div></td></tr>"
+          );
+        }).join("") +
+        "</tbody></table>";
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+    function escapeAttr(s) {
+      return escapeHtml(s).replace(/'/g, "&#39;");
+    }
+
+    async function load() {
+      const me = await api("/api/auth/me");
+      if (!me.data.is_super_admin) {
+        window.location.href = "/GreenLakeTools.html";
+        return;
+      }
+      document.getElementById("whoAmI").textContent =
+        (me.data.display_name || me.data.username) + " · super admin";
+      const list = await api("/api/admin/users");
+      TILES = list.data.tiles || [];
+      USERS = list.data.users || [];
+      renderTileGrid();
+      renderUsers();
+    }
+
+    document.getElementById("btnCreate").addEventListener("click", function () {
+      openModal("create", null);
+    });
+    document.getElementById("modalClose").addEventListener("click", closeModal);
+    document.getElementById("modalCancel").addEventListener("click", closeModal);
+    modal.addEventListener("click", function (e) {
+      if (e.target === modal) closeModal();
+    });
+
+    const importModal = document.getElementById("importModal");
+    function openImport() {
+      document.getElementById("csvFile").value = "";
+      const box = document.getElementById("importResult");
+      box.style.display = "none";
+      box.innerHTML = "";
+      importModal.classList.add("open");
+    }
+    function closeImport() {
+      importModal.classList.remove("open");
+    }
+    document.getElementById("btnImport").addEventListener("click", openImport);
+    document.getElementById("importClose").addEventListener("click", closeImport);
+    document.getElementById("importCancel").addEventListener("click", closeImport);
+    importModal.addEventListener("click", function (e) {
+      if (e.target === importModal) closeImport();
+    });
+
+    document.getElementById("btnCsvTemplate").addEventListener("click", async function (e) {
+      e.preventDefault();
+      try {
+        const res = await fetch("/api/admin/users/csv-template", { credentials: "include" });
+        if (res.status === 401) {
+          window.location.href = "/login?next=/admin/users";
+          return;
+        }
+        if (!res.ok) {
+          showBanner("Could not download template", false);
+          return;
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "platform_users_template.csv";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 0);
+      } catch (err) {
+        showBanner("Could not download template", false);
+      }
+    });
+
+    document.getElementById("importRun").addEventListener("click", async function () {
+      const fileInput = document.getElementById("csvFile");
+      const file = fileInput.files && fileInput.files[0];
+      if (!file) {
+        showBanner("Choose a CSV file first", false);
+        return;
+      }
+      const btn = document.getElementById("importRun");
+      btn.disabled = true;
+      btn.textContent = "Uploading…";
+      try {
+        const fd = new FormData();
+        fd.append("file", file);
+        const res = await fetch("/api/admin/users/bulk", {
+          method: "POST",
+          credentials: "include",
+          body: fd
+        });
+        const data = await res.json().catch(function () { return {}; });
+        if (res.status === 401) {
+          window.location.href = "/login?next=/admin/users";
+          return;
+        }
+        if (!res.ok || !data.ok) {
+          showBanner(data.error || "Import failed", false);
+          return;
+        }
+        const box = document.getElementById("importResult");
+        let html = "<strong>Created " + (data.created_count || 0) +
+          "</strong>, errors " + (data.error_count || 0) +
+          ", skipped empty rows " + (data.skipped_count || 0) + ".";
+        if (data.errors && data.errors.length) {
+          html += "<ul style='margin-top:8px;padding-left:18px;color:#a82a2a'>";
+          data.errors.slice(0, 20).forEach(function (err) {
+            html += "<li>Row " + escapeHtml(err.row) + " · " +
+              escapeHtml(err.username) + ": " + escapeHtml(err.error) + "</li>";
+          });
+          html += "</ul>";
+        }
+        box.innerHTML = html;
+        box.style.display = "block";
+        showBanner(
+          "Import finished: " + (data.created_count || 0) + " created, " +
+            (data.error_count || 0) + " errors",
+          (data.error_count || 0) === 0
+        );
+        await load();
+      } catch (err) {
+        showBanner("Import request failed", false);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Upload & create";
+      }
+    });
+
+    document.getElementById("tableWrap").addEventListener("click", function (e) {
+      const btn = e.target.closest("button[data-act]");
+      if (!btn) return;
+      const username = btn.getAttribute("data-u");
+      const user = USERS.find(function (u) { return u.username === username; });
+      if (!user) return;
+      const act = btn.getAttribute("data-act");
+      if (act === "edit") openModal("edit", user);
+      if (act === "password") openModal("password", user);
+      if (act === "delete") {
+        if (!confirm("Delete user “" + username + "”? This cannot be undone.")) return;
+        api("/api/admin/users/" + encodeURIComponent(username), { method: "DELETE" })
+          .then(function (r) {
+            if (!r.res.ok) showBanner(r.data.error || "Delete failed", false);
+            else {
+              showBanner("User deleted", true);
+              load();
+            }
+          });
+      }
+    });
+
+    document.getElementById("modalSave").addEventListener("click", async function () {
+      const mode = document.getElementById("fMode").value;
+      const username = (document.getElementById("fUsername").value || editUsername || "").trim();
+      const display_name = document.getElementById("fDisplay").value.trim();
+      const password = document.getElementById("fPassword").value;
+      const role = document.getElementById("fRole").value;
+      const enabled = document.getElementById("fEnabled").value === "1";
+      const tiles = selectedTiles();
+
+      try {
+        if (mode === "create") {
+          const r = await api("/api/admin/users", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password, display_name, role, enabled, tiles })
+          });
+          if (!r.res.ok) {
+            showBanner(r.data.error || "Create failed", false);
+            return;
+          }
+          showBanner("User created", true);
+        } else if (mode === "password") {
+          const r = await api("/api/admin/users/" + encodeURIComponent(username) + "/password", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ password })
+          });
+          if (!r.res.ok) {
+            showBanner(r.data.error || "Password update failed", false);
+            return;
+          }
+          showBanner("Password updated", true);
+        } else {
+          const r = await api("/api/admin/users/" + encodeURIComponent(username), {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ display_name, role, enabled, tiles })
+          });
+          if (!r.res.ok) {
+            showBanner(r.data.error || "Update failed", false);
+            return;
+          }
+          showBanner("User updated", true);
+        }
+        closeModal();
+        await load();
+      } catch (err) {
+        if (err.message !== "auth" && err.message !== "forbidden") {
+          showBanner("Request failed", false);
+        }
+      }
+    });
+
+    load().catch(function () {
+      document.getElementById("tableWrap").innerHTML =
+        '<div class="empty">Could not load users. Sign in as super admin.</div>';
+    });
+  </script>
+</body>
+</html>

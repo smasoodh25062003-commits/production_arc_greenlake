@@ -4,8 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Request, HTTPException
 from pydantic import BaseModel, Field
 
-from app.auth.session import read_session
-from app.auth.users import role_gte
+from app.auth.session import read_session, user_has_platform_tile
 from app.feedback.logger import (
     save_feedback,
     get_recent_feedback,
@@ -25,15 +24,18 @@ class FeedbackSubmit(BaseModel):
 
 @router.get("/whoami")
 async def feedback_whoami(request: Request):
-    """Used by Platform Tools to show admin-only Mentors cards."""
+    """Session probe for mentor tools (Platform Tools or gldash cookie)."""
     user = read_session(request)
     if not user:
         return {"authenticated": False, "is_admin": False, "role": None}
+    # Platform Tools tiles are the access control; treat signed-in users as allowed.
     return {
         "authenticated": True,
-        "is_admin": role_gte(user.get("role", "viewer"), "admin"),
+        "is_admin": True,
         "role": user.get("role"),
         "display_name": user.get("display_name"),
+        "auth_source": user.get("auth_source"),
+        "tiles": user.get("tiles") or [],
     }
 
 
@@ -56,8 +58,8 @@ async def submit_feedback(request: Request, body: FeedbackSubmit):
 @router.get("/list")
 async def list_feedback(request: Request, status: Optional[str] = None, limit: int = 500):
     user = read_session(request)
-    if not user or not role_gte(user.get("role", "viewer"), "admin"):
-        raise HTTPException(status_code=403, detail="Admin access required.")
+    if not user or not user_has_platform_tile(user, "feedback-inbox"):
+        raise HTTPException(status_code=403, detail="You do not have access to this tool.")
     items = get_recent_feedback(limit=min(limit, 1000), status=status)
     return {"items": items}
 
@@ -67,8 +69,8 @@ async def patch_feedback_status(
     request: Request, feedback_id: int, status: str
 ):
     user = read_session(request)
-    if not user or not role_gte(user.get("role", "viewer"), "admin"):
-        raise HTTPException(status_code=403, detail="Admin access required.")
+    if not user or not user_has_platform_tile(user, "feedback-inbox"):
+        raise HTTPException(status_code=403, detail="You do not have access to this tool.")
     if status not in VALID_STATUSES:
         raise HTTPException(status_code=400, detail="Invalid status.")
     if not update_feedback_status(feedback_id, status):

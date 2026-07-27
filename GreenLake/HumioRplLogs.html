@@ -4,7 +4,7 @@
   <script src="/greenlake-theme.js"></script>
   <link rel="stylesheet" href="/greenlake-theme.css" />
   <script src="/greenlake-feedback.js" defer></script>
-  <script src="/greenlake-usage.js" defer></script>
+  <script src="/greenlake-case-audit.js"></script>
 
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -323,6 +323,8 @@
       showToast("Enter a customer ID first.", "error");
       return;
     }
+    const caseNumber = await window.promptCaseNumber();
+    if (!caseNumber) return;
 
     const btn = $("btnQuery");
     btn.disabled = true;
@@ -332,6 +334,7 @@
     const body = {
       customer_id: customerId,
       start: $("timeRange").value,
+      case_number: caseNumber,
     };
     const token = $("apiToken").value.trim();
     if (token) body.api_token = token;

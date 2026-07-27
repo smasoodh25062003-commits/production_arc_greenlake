@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <script src="/greenlake-theme.js"></script>
+  <link rel="stylesheet" href="/greenlake-theme.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Audit Logs — Platform Tools</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #f7f7f7; color: #2c2c2c; min-height: 100vh;
+      background-image:
+        radial-gradient(circle at 12% 10%, rgba(1, 169, 130, 0.08), transparent 40%),
+        radial-gradient(circle at 88% 90%, rgba(13, 122, 199, 0.06), transparent 40%);
+    }
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 28px; background: #fff; border-bottom: 1px solid #d5d5d5;
+      position: sticky; top: 0; z-index: 20; gap: 12px; flex-wrap: wrap;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      width: 36px; height: 36px; background: #01a982;
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 0.55rem; font-weight: 800;
+    }
+    .brand h1 { font-size: 1rem; font-weight: 700; }
+    .brand p {
+      font-family: 'JetBrains Mono', monospace; font-size: 0.6rem;
+      letter-spacing: 0.12em; text-transform: uppercase; color: #01a982;
+    }
+    .top-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .btn {
+      border: 1px solid #d5d5d5; background: #fff; color: #2c2c2c;
+      border-radius: 6px; padding: 8px 14px; font-size: 0.85rem; font-weight: 600;
+      cursor: pointer; font-family: inherit; text-decoration: none;
+    }
+    .btn:hover { border-color: #01a982; color: #00755a; }
+    .btn-primary { background: #01a982; border-color: #01a982; color: #fff; }
+    .btn-primary:hover { background: #00755a; border-color: #00755a; color: #fff; }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 24px 20px 60px; }
+    .filters {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px; margin-bottom: 16px;
+    }
+    .filters input, .filters select {
+      width: 100%; padding: 10px 12px; border: 1px solid #d5d5d5; border-radius: 6px;
+      font-family: inherit; font-size: 0.88rem; background: #fff;
+    }
+    .panel {
+      background: #fff; border: 1px solid #d5d5d5; border-radius: 8px; overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid #eee; font-size: 0.84rem; vertical-align: top; }
+    th {
+      background: #fafafa; font-size: 0.68rem; text-transform: uppercase;
+      letter-spacing: 0.06em; color: #666; font-weight: 700;
+    }
+    tr:last-child td { border-bottom: none; }
+    .mono { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; }
+    .pill {
+      display: inline-block; padding: 2px 8px; border-radius: 999px;
+      font-size: 0.68rem; font-weight: 700;
+      background: rgba(1,169,130,0.12); color: #00755a;
+    }
+    .pill-started { background: rgba(13,122,199,0.1); color: #0d7ac7; }
+    .empty { padding: 40px; text-align: center; color: #777; }
+    .who { font-size: 0.8rem; color: #666; }
+    details.io {
+      max-width: 280px;
+    }
+    details.io summary {
+      cursor: pointer; font-weight: 600; color: #00755a; font-size: 0.78rem;
+      list-style: none;
+    }
+    details.io summary::-webkit-details-marker { display: none; }
+    details.io summary::before { content: "▸ "; }
+    details.io[open] summary::before { content: "▾ "; }
+    details.io pre {
+      margin-top: 8px; max-height: 220px; overflow: auto;
+      background: #f7f7f7; border: 1px solid #e5e5e5; border-radius: 6px;
+      padding: 8px 10px; white-space: pre-wrap; word-break: break-word;
+      font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; line-height: 1.4;
+    }
+    .io-empty { color: #999; font-size: 0.78rem; }
+  </style>
+  <link rel="stylesheet" href="/platform-tools-dark.css" />
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark">GL</div>
+      <div>
+        <h1>Action Audit Log</h1>
+        <p>Users · Tools · Case numbers</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <span class="who" id="whoAmI"></span>
+      <button type="button" id="themeToggle" class="gl-theme-toggle" aria-label="Toggle theme">
+        <span class="theme-icon theme-icon-light" aria-hidden="true">&#9728;</span>
+        <span class="theme-icon theme-icon-dark" aria-hidden="true">&#9790;</span>
+      </button>
+      <a class="btn" href="/admin/audit-dashboard">Analytics</a>
+      <a class="btn" href="/admin/users">Users</a>
+      <a class="btn" href="/GreenLakeTools.html">← Tools</a>
+      <a class="btn" href="/logout">Logout</a>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="filters">
+      <input id="fCase" placeholder="Filter case number" />
+      <input id="fUser" placeholder="Filter username" />
+      <select id="fTool">
+        <option value="">All tools</option>
+        <option value="device">Device</option>
+        <option value="subscription">Subscription</option>
+        <option value="user">User & Account</option>
+        <option value="roles">User Roles</option>
+        <option value="sso-tools">SSO Tools</option>
+        <option value="humio-rpl">Humio RPL Logs</option>
+      </select>
+      <button type="button" class="btn btn-primary" id="btnRefresh">Refresh</button>
+    </div>
+    <div class="panel" id="tableWrap">
+      <div class="empty">Loading…</div>
+    </div>
+  </div>
+
+  <script>
+    function esc(s) {
+      return String(s == null ? "" : s)
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function ioCell(label, text) {
+      if (!text) return '<span class="io-empty">—</span>';
+      return (
+        '<details class="io"><summary>' + esc(label) + '</summary>' +
+        "<pre>" + esc(text) + "</pre></details>"
+      );
+    }
+
+    async function load() {
+      const me = await fetch("/api/auth/me", { credentials: "include" });
+      if (me.status === 401) {
+        window.location.href = "/login?next=/admin/audit";
+        return;
+      }
+      const meData = await me.json();
+      if (!meData.is_super_admin) {
+        window.location.href = "/GreenLakeTools.html";
+        return;
+      }
+      document.getElementById("whoAmI").textContent =
+        (meData.display_name || meData.username) + " · super admin";
+
+      const params = new URLSearchParams();
+      params.set("limit", "500");
+      const c = document.getElementById("fCase").value.trim();
+      const u = document.getElementById("fUser").value.trim();
+      const t = document.getElementById("fTool").value;
+      if (c) params.set("case_number", c);
+      if (u) params.set("username", u);
+      if (t) params.set("tool", t);
+
+      const res = await fetch("/api/admin/audit?" + params.toString(), { credentials: "include" });
+      const data = await res.json();
+      const wrap = document.getElementById("tableWrap");
+      const items = data.items || [];
+      if (!items.length) {
+        wrap.innerHTML = '<div class="empty">No audit events yet.</div>';
+        return;
+      }
+      wrap.innerHTML =
+        "<table><thead><tr>" +
+        "<th>Time (UTC)</th><th>User</th><th>Tool</th><th>Action</th><th>Case #</th><th>Status</th>" +
+        "<th>Input</th><th>Output</th><th>Detail</th>" +
+        "</tr></thead><tbody>" +
+        items.map(function (row) {
+          const st = row.status === "started" ? "pill-started" : "";
+          return (
+            "<tr>" +
+            '<td class="mono">' + esc(row.ts) + "</td>" +
+            "<td><strong>" + esc(row.username) + "</strong><div style='color:#777;font-size:0.75rem'>" +
+            esc(row.display_name || "") + "</div></td>" +
+            "<td>" + esc(row.tool) + "</td>" +
+            "<td>" + esc(row.action) + "</td>" +
+            '<td class="mono"><strong>' + esc(row.case_number) + "</strong></td>" +
+            '<td><span class="pill ' + st + '">' + esc(row.status) + "</span></td>" +
+            "<td>" + ioCell("View input", row.request_input) + "</td>" +
+            "<td>" + ioCell("View output", row.response_output) + "</td>" +
+            '<td class="mono">' + esc(row.detail || "") + "</td>" +
+            "</tr>"
+          );
+        }).join("") +
+        "</tbody></table>";
+    }
+
+    document.getElementById("btnRefresh").addEventListener("click", load);
+    ["fCase", "fUser"].forEach(function (id) {
+      document.getElementById(id).addEventListener("keydown", function (e) {
+        if (e.key === "Enter") load();
+      });
+    });
+    document.getElementById("fTool").addEventListener("change", load);
+    load();
+  </script>
+</body>
+</html>

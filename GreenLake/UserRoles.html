@@ -4,7 +4,7 @@
   <script src="/greenlake-theme.js"></script>
   <link rel="stylesheet" href="/greenlake-theme.css" />
   <script src="/greenlake-feedback.js" defer></script>
-  <script src="/greenlake-usage.js" defer></script>
+  <script src="/greenlake-case-audit.js"></script>
 
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -519,6 +519,8 @@ function stopFetch() {
 async function runFetch() {
   const emails = parseEmails(document.getElementById('emails-input').value);
   if (!emails.length) { showToast('Please enter at least one email.', 'error'); return; }
+  const caseNumber = await window.promptCaseNumber();
+  if (!caseNumber) return;
 
   if (currentAbortController) currentAbortController.abort();
   currentAbortController = new AbortController();
@@ -533,7 +535,7 @@ async function runFetch() {
     const res = await fetch(`${API_BASE}/roles-stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ parsed_headers: state.parsedHeaders, emails }),
+      body: JSON.stringify({ parsed_headers: state.parsedHeaders, emails, case_number: caseNumber }),
       signal: currentAbortController.signal,
     });
 

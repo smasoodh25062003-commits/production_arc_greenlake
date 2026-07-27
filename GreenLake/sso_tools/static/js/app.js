@@ -1170,6 +1170,14 @@
       setStatus("Organization ID is required.", "error");
       return;
     }
+    const caseNumber = typeof window.promptCaseNumber === "function"
+      ? await window.promptCaseNumber()
+      : null;
+    if (!caseNumber) {
+      setStatus("Case number is required.", "error");
+      return;
+    }
+    payload.case_number = caseNumber;
     try {
       const res = await fetch(apiBase() + "/api/generate", {
         method: "POST",
@@ -1188,6 +1196,19 @@
         output.textContent = currentResult;
         setStatus("String generated (offline).", "success");
         saveToHistory(currentResult, payload);
+        try {
+          await fetch(apiBase() + "/api/audit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              case_number: caseNumber,
+              action: "generate",
+              detail: "okta no-groups offline",
+              request_input: payload,
+              response_output: currentResult,
+            }),
+          });
+        } catch (_) { /* audit best-effort */ }
       } catch (localErr) {
         setStatus(localErr.message, "error");
       }
@@ -1222,9 +1243,17 @@
       setStatus("Nothing to copy yet.", "error");
       return;
     }
+    const caseNumber = typeof window.promptCaseNumber === "function"
+      ? await window.promptCaseNumber()
+      : null;
+    if (!caseNumber) {
+      setStatus("Case number is required.", "error");
+      return;
+    }
+    let copied = false;
     try {
       await navigator.clipboard.writeText(currentResult);
-      setStatus("Copied to clipboard.", "success");
+      copied = true;
     } catch (err) {
       const ta = document.createElement("textarea");
       ta.value = currentResult;
@@ -1232,10 +1261,32 @@
       ta.style.opacity = "0";
       document.body.appendChild(ta);
       ta.select();
-      try { document.execCommand("copy"); setStatus("Copied to clipboard.", "success"); }
-      catch (e) { setStatus("Copy failed.", "error"); }
+      try {
+        document.execCommand("copy");
+        copied = true;
+      } catch (e) {
+        copied = false;
+      }
       document.body.removeChild(ta);
     }
+    if (!copied) {
+      setStatus("Copy failed.", "error");
+      return;
+    }
+    setStatus("Copied to clipboard.", "success");
+    try {
+      await fetch(apiBase() + "/api/audit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          case_number: caseNumber,
+          action: "copy",
+          detail: "okta no-groups copy",
+          request_input: getPayload(),
+          response_output: currentResult,
+        }),
+      });
+    } catch (_) { /* audit best-effort */ }
   });
 
   // ----- Export -----

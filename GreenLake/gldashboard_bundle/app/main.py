@@ -13,7 +13,6 @@ from app.auth.session import read_session, set_session, clear_session
 from app.auth.rbac import get_current_user, require_role
 from app.audit.logger import get_recent_logs, get_log_stats
 from app.feedback.logger import get_recent_feedback, get_feedback_stats
-from app.usage.logger import get_recent_usage, get_usage_stats
 from app.monitoring.traffic import log_request, get_traffic_stats
 from app.monitoring.server_health import get_server_health
 
@@ -48,7 +47,6 @@ from app.api.routers.bulk import router as bulk_router
 from app.api.routers.auth import router as auth_router
 from app.api.routers.ccs_manager import router as ccs_router
 from app.api.routers.feedback import router as feedback_router
-from app.api.routers.usage import router as usage_router
 from app.api.routers.dsat import router as dsat_router
 
 app.include_router(devices_router.router, prefix="/api/devices", tags=["devices"])
@@ -57,7 +55,6 @@ app.include_router(bulk_router, prefix="/api/bulk", tags=["bulk"])
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 app.include_router(ccs_router, prefix="/api/ccs", tags=["ccs-manager"])
 app.include_router(feedback_router, prefix="/api/feedback", tags=["feedback"])
-app.include_router(usage_router, prefix="/api/usage", tags=["usage"])
 app.include_router(dsat_router, prefix="/api/dsat", tags=["dsat"])
 from app.api.routers import sites_groups
 
@@ -99,26 +96,49 @@ async def _traffic_middleware(request: Request, call_next):
 # ── Auth Routes ────────────────────────────────────────────────────────────────
 
 
+def _platform_login_url(next_path: str = "/gldash/", request=None) -> str:
+    """Always use Platform Tools login — never the old /gldash/login form.
+
+    Use an absolute URL so Starlette Mount under /gldash cannot rewrite
+    ``/login`` into ``/gldash/login``.
+    """
+    from urllib.parse import quote
+
+    if not next_path.startswith("/"):
+        next_path = "/" + next_path
+    path = "/login?next=" + quote(next_path, safe="/")
+    if request is not None:
+        base = str(request.base_url)  # e.g. http://host/gldash/
+        # Strip mount suffix if present
+        if base.rstrip("/").endswith("/gldash"):
+            base = base.rstrip("/")[: -len("/gldash")] + "/"
+        # request.base_url under mount may be http://host/gldash/
+        # Prefer netloc from the URL to build a site-root absolute link.
+        return f"{request.url.scheme}://{request.url.netloc}{path}"
+    return path
+
+
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
+    """Legacy dashboard login removed — bounce to Platform Tools /login."""
     user = read_session(request)
     if user:
         return RedirectResponse(url=_url("/"), status_code=302)
-    return templates.TemplateResponse(
-        request, "login.html", _ctx(request, error=None)
-    )
+    nxt = request.query_params.get("next") or "/gldash/"
+    if not nxt.startswith("/"):
+        nxt = "/gldash/"
+    # Avoid bounce loop if next already points at this login
+    if nxt.rstrip("/").endswith("/login") or "gldash/login" in nxt:
+        nxt = "/gldash/"
+    return RedirectResponse(url=_platform_login_url(nxt, request=request), status_code=302)
 
 
 @app.post("/login", response_class=HTMLResponse)
 async def login_submit(request: Request, username: str = Form(...), password: str = Form(...)):
+    """Keep POST for compatibility, but prefer Platform Tools /login."""
     user = authenticate_user(username, password)
     if not user:
-        return templates.TemplateResponse(
-            request,
-            "login.html",
-            _ctx(request, error="Invalid username or password."),
-            status_code=401,
-        )
+        return RedirectResponse(url=_platform_login_url("/gldash/", request=request), status_code=302)
     response = RedirectResponse(url=_url("/"), status_code=302)
     set_session(response, user)
     return response
@@ -126,7 +146,7 @@ async def login_submit(request: Request, username: str = Form(...), password: st
 
 @app.get("/logout")
 async def logout():
-    response = RedirectResponse(url=_url("/login"), status_code=302)
+    response = RedirectResponse(url="/logout", status_code=302)
     clear_session(response)
     return response
 
@@ -146,11 +166,15 @@ def _ctx(request: Request, **kwargs):
 
 
 def _require_login(request: Request):
-    """Return user or redirect to login for page routes."""
+    """Return user or None (login required)."""
     user = read_session(request)
     if not user:
         return None
     return user
+
+
+def _login_redirect(next_path: str, request: Request | None = None) -> RedirectResponse:
+    return RedirectResponse(url=_platform_login_url(next_path, request=request), status_code=302)
 
 
 # ── Page Routes ────────────────────────────────────────────────────────────────
@@ -160,7 +184,11 @@ def _require_login(request: Request):
 async def read_root(request: Request):
     user = _require_login(request)
     if not user:
-        return RedirectResponse(url=_url("/login"), status_code=302)
+        return _login_redirect("/gldash/", request)
+    from app.auth.session import user_has_platform_tile
+
+    if not user_has_platform_tile(user, "mentor-tool"):
+        return HTMLResponse("<h2>403 — You do not have access to this tool.</h2>", status_code=403)
     client = get_glp_client()
     configured = client is not None
     return templates.TemplateResponse(
@@ -172,7 +200,7 @@ async def read_root(request: Request):
 async def read_devices(request: Request):
     user = _require_login(request)
     if not user:
-        return RedirectResponse(url=_url("/login"), status_code=302)
+        return _login_redirect("/gldash" + (request.url.path if request.url.path.startswith("/") else "/"), request)
     client = get_glp_client()
     configured = client is not None
     devices = []
@@ -244,7 +272,7 @@ async def read_devices(request: Request):
 async def read_reports(request: Request):
     user = _require_login(request)
     if not user:
-        return RedirectResponse(url=_url("/login"), status_code=302)
+        return _login_redirect("/gldash" + (request.url.path if request.url.path.startswith("/") else "/"), request)
     client = get_glp_client()
     return templates.TemplateResponse(
         request, "reports.html", _ctx(request, configured=client is not None)
@@ -255,7 +283,7 @@ async def read_reports(request: Request):
 async def read_bulk(request: Request):
     user = _require_login(request)
     if not user:
-        return RedirectResponse(url=_url("/login"), status_code=302)
+        return _login_redirect("/gldash" + (request.url.path if request.url.path.startswith("/") else "/"), request)
     client = get_glp_client()
     return templates.TemplateResponse(
         request, "bulk.html", _ctx(request, configured=client is not None)
@@ -266,7 +294,7 @@ async def read_bulk(request: Request):
 async def read_sites_groups(request: Request):
     user = _require_login(request)
     if not user:
-        return RedirectResponse(url=_url("/login"), status_code=302)
+        return _login_redirect("/gldash" + (request.url.path if request.url.path.startswith("/") else "/"), request)
     client = get_glp_client()
     return templates.TemplateResponse(
         request, "sites_groups.html", _ctx(request, configured=client is not None)
@@ -280,7 +308,7 @@ async def read_sites_groups(request: Request):
 async def redirect_ccs_manager(request: Request):
     user = _require_login(request)
     if not user:
-        return RedirectResponse(url=_url("/login"), status_code=302)
+        return _login_redirect("/gldash" + (request.url.path if request.url.path.startswith("/") else "/"), request)
     return RedirectResponse(url=_url("/ccs-manager/devices"))
 
 
@@ -288,7 +316,7 @@ async def redirect_ccs_manager(request: Request):
 async def read_ccs_manager_devices(request: Request):
     user = _require_login(request)
     if not user:
-        return RedirectResponse(url=_url("/login"), status_code=302)
+        return _login_redirect("/gldash" + (request.url.path if request.url.path.startswith("/") else "/"), request)
     return templates.TemplateResponse(request, "ccs_devices.html", _ctx(request))
 
 
@@ -296,7 +324,7 @@ async def read_ccs_manager_devices(request: Request):
 async def read_ccs_manager_subscriptions(request: Request):
     user = _require_login(request)
     if not user:
-        return RedirectResponse(url=_url("/login"), status_code=302)
+        return _login_redirect("/gldash" + (request.url.path if request.url.path.startswith("/") else "/"), request)
     return templates.TemplateResponse(request, "ccs_subscriptions.html", _ctx(request))
 
 
@@ -304,7 +332,7 @@ async def read_ccs_manager_subscriptions(request: Request):
 async def read_ccs_manager_users(request: Request):
     user = _require_login(request)
     if not user:
-        return RedirectResponse(url=_url("/login"), status_code=302)
+        return _login_redirect("/gldash" + (request.url.path if request.url.path.startswith("/") else "/"), request)
     return templates.TemplateResponse(request, "ccs_users.html", _ctx(request))
 
 
@@ -312,7 +340,7 @@ async def read_ccs_manager_users(request: Request):
 async def read_audit_logs(request: Request):
     user = _require_login(request)
     if not user:
-        return RedirectResponse(url=_url("/login"), status_code=302)
+        return _login_redirect("/gldash" + (request.url.path if request.url.path.startswith("/") else "/"), request)
     from app.auth.users import role_gte
 
     if not role_gte(user.get("role", "viewer"), "admin"):
@@ -328,7 +356,7 @@ async def read_admin_monitoring(request: Request):
     """Admin-only monitoring: traffic + usage summaries."""
     user = _require_login(request)
     if not user:
-        return RedirectResponse(url=_url("/login"), status_code=302)
+        return _login_redirect("/gldash" + (request.url.path if request.url.path.startswith("/") else "/"), request)
     from app.auth.users import role_gte
 
     if not role_gte(user.get("role", "viewer"), "admin"):
@@ -386,14 +414,14 @@ async def read_admin_monitoring(request: Request):
 
 @app.get("/mentors/feedback", response_class=HTMLResponse)
 async def read_mentor_feedback(request: Request):
-    """Admin-only feedback inbox (Mentors module)."""
+    """Feedback inbox — gated by Platform Tools login + tile (no separate gldash admin RBAC)."""
     user = _require_login(request)
     if not user:
-        return RedirectResponse(url=_url("/login"), status_code=302)
-    from app.auth.users import role_gte
+        return _login_redirect("/gldash/mentors/feedback", request)
+    from app.auth.session import user_has_platform_tile
 
-    if not role_gte(user.get("role", "viewer"), "admin"):
-        return HTMLResponse("<h2>403 — Admin access required.</h2>", status_code=403)
+    if not user_has_platform_tile(user, "feedback-inbox"):
+        return HTMLResponse("<h2>403 — You do not have access to this tool.</h2>", status_code=403)
     items = get_recent_feedback(limit=500)
     stats = get_feedback_stats()
     return templates.TemplateResponse(
@@ -401,33 +429,16 @@ async def read_mentor_feedback(request: Request):
     )
 
 
-@app.get("/mentors/usage", response_class=HTMLResponse)
-async def read_mentor_usage(request: Request):
-    """Admin-only Platform Tools usage log (Mentors module)."""
-    user = _require_login(request)
-    if not user:
-        return RedirectResponse(url=_url("/login"), status_code=302)
-    from app.auth.users import role_gte
-
-    if not role_gte(user.get("role", "viewer"), "admin"):
-        return HTMLResponse("<h2>403 — Admin access required.</h2>", status_code=403)
-    items = get_recent_usage(limit=500)
-    stats = get_usage_stats()
-    return templates.TemplateResponse(
-        request, "mentor_usage.html", _ctx(request, items=items, stats=stats)
-    )
-
-
 @app.get("/mentors/dsat", response_class=HTMLResponse)
 async def read_mentor_dsat(request: Request):
-    """Admin-only DSAT Alert Analyzer (Mentors module)."""
+    """DSAT Alert Analyzer — gated by Platform Tools login + tile (no separate gldash admin RBAC)."""
     user = _require_login(request)
     if not user:
-        return RedirectResponse(url=_url("/login"), status_code=302)
-    from app.auth.users import role_gte
+        return _login_redirect("/gldash/mentors/dsat", request)
+    from app.auth.session import user_has_platform_tile
 
-    if not role_gte(user.get("role", "viewer"), "admin"):
-        return HTMLResponse("<h2>403 — Admin access required.</h2>", status_code=403)
+    if not user_has_platform_tile(user, "dsat-analyzer"):
+        return HTMLResponse("<h2>403 — You do not have access to this tool.</h2>", status_code=403)
 
     html_path = _BUNDLE_ROOT.parent / "DsatAlertAnalyzer.html"
     if not html_path.is_file():

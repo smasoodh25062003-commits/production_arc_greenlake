@@ -1233,12 +1233,46 @@
     }[c]));
   }
 
+  function apiBase() {
+    if (typeof window !== "undefined" && window.__SSO_TOOLS_ROOT__) {
+      return String(window.__SSO_TOOLS_ROOT__).replace(/\/$/, "");
+    }
+    return "";
+  }
+
   // ----- Generate (just saves current preview) -----
-  form.addEventListener("submit", (e) => {
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
     updatePreview();
     if (!currentResult) {
       setStatus("Add at least one valid group first.", "error");
+      return;
+    }
+    const caseNumber = typeof window.promptCaseNumber === "function"
+      ? await window.promptCaseNumber()
+      : null;
+    if (!caseNumber) {
+      setStatus("Case number is required.", "error");
+      return;
+    }
+    try {
+      const res = await fetch(apiBase() + "/api/audit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          case_number: caseNumber,
+          action: "generate",
+          detail: "okta with-groups",
+          request_input: buildExportPayload(),
+          response_output: currentResult,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) {
+        throw new Error(data.error || "Audit logging failed.");
+      }
+    } catch (err) {
+      setStatus(err.message || "Case audit failed.", "error");
       return;
     }
     setStatus("String generated.", "success");
@@ -1265,9 +1299,17 @@
   // ----- Copy -----
   copyBtn.addEventListener("click", async () => {
     if (!currentResult) { setStatus("Nothing to copy yet.", "error"); return; }
+    const caseNumber = typeof window.promptCaseNumber === "function"
+      ? await window.promptCaseNumber()
+      : null;
+    if (!caseNumber) {
+      setStatus("Case number is required.", "error");
+      return;
+    }
+    let copied = false;
     try {
       await navigator.clipboard.writeText(currentResult);
-      setStatus("Copied to clipboard.", "success");
+      copied = true;
     } catch (err) {
       const ta = document.createElement("textarea");
       ta.value = currentResult;
@@ -1275,10 +1317,32 @@
       ta.style.opacity = "0";
       document.body.appendChild(ta);
       ta.select();
-      try { document.execCommand("copy"); setStatus("Copied to clipboard.", "success"); }
-      catch (e) { setStatus("Copy failed.", "error"); }
+      try {
+        document.execCommand("copy");
+        copied = true;
+      } catch (e) {
+        copied = false;
+      }
       document.body.removeChild(ta);
     }
+    if (!copied) {
+      setStatus("Copy failed.", "error");
+      return;
+    }
+    setStatus("Copied to clipboard.", "success");
+    try {
+      await fetch(apiBase() + "/api/audit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          case_number: caseNumber,
+          action: "copy",
+          detail: "okta with-groups copy",
+          request_input: buildExportPayload(),
+          response_output: currentResult,
+        }),
+      });
+    } catch (_) { /* audit best-effort */ }
   });
 
   // ----- Export -----

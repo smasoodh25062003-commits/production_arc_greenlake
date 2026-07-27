@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <script src="/greenlake-theme.js"></script>
+  <link rel="stylesheet" href="/greenlake-theme.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Audit Analytics — Platform Tools</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f3f5f7;
+      --panel: #ffffff;
+      --border: #d8dde3;
+      --text: #1f2a32;
+      --muted: #62707c;
+      --green: #01a982;
+      --green-dark: #00755a;
+      --blue: #0d7ac7;
+      --amber: #c47a12;
+    }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100vh;
+      background-image:
+        radial-gradient(circle at 8% 0%, rgba(1, 169, 130, 0.1), transparent 38%),
+        radial-gradient(circle at 92% 12%, rgba(13, 122, 199, 0.08), transparent 36%),
+        linear-gradient(180deg, #eef3f6 0%, #f3f5f7 40%, #f7f8fa 100%);
+    }
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 24px; background: rgba(255,255,255,0.92);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 20; gap: 12px; flex-wrap: wrap;
+      backdrop-filter: blur(10px);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      width: 36px; height: 36px; background: var(--green);
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 0.55rem; font-weight: 800;
+    }
+    .brand h1 { font-size: 1.05rem; font-weight: 800; letter-spacing: -0.02em; }
+    .brand p {
+      font-family: 'JetBrains Mono', monospace; font-size: 0.6rem;
+      letter-spacing: 0.12em; text-transform: uppercase; color: var(--green);
+    }
+    .top-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .btn {
+      border: 1px solid var(--border); background: #fff; color: var(--text);
+      border-radius: 6px; padding: 8px 12px; font-size: 0.82rem; font-weight: 600;
+      cursor: pointer; font-family: inherit; text-decoration: none;
+    }
+    .btn:hover { border-color: var(--green); color: var(--green-dark); }
+    .btn-primary { background: var(--green); border-color: var(--green); color: #fff; }
+    .btn-primary:hover { background: var(--green-dark); border-color: var(--green-dark); color: #fff; }
+    .btn.active { background: rgba(1,169,130,0.12); border-color: var(--green); color: var(--green-dark); }
+    .who { font-size: 0.8rem; color: var(--muted); }
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 22px 18px 56px; }
+    .hero {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      gap: 16px; flex-wrap: wrap; margin-bottom: 18px;
+    }
+    .hero h2 { font-size: 1.45rem; font-weight: 800; letter-spacing: -0.03em; }
+    .hero p { color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
+    .range { display: flex; gap: 6px; flex-wrap: wrap; }
+    .kpis {
+      display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px; margin-bottom: 16px;
+    }
+    @media (max-width: 1100px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 700px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+    .kpi {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+      padding: 16px 16px 14px; box-shadow: 0 1px 2px rgba(16,24,40,0.04);
+      position: relative; overflow: hidden;
+    }
+    .kpi::after {
+      content: ""; position: absolute; inset: auto -20% -40% auto; width: 90px; height: 90px;
+      border-radius: 50%; background: rgba(1,169,130,0.08);
+    }
+    .kpi .label {
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--muted); margin-bottom: 8px;
+    }
+    .kpi .value {
+      font-size: 1.7rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1;
+    }
+    .kpi .sub { margin-top: 6px; font-size: 0.78rem; color: var(--muted); }
+    .grid {
+      display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; margin-bottom: 14px;
+    }
+    @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+    .panel {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+      box-shadow: 0 1px 2px rgba(16,24,40,0.04); overflow: hidden;
+    }
+    .panel-h {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px; border-bottom: 1px solid #eef1f4; gap: 8px;
+    }
+    .panel-h h3 { font-size: 0.92rem; font-weight: 700; }
+    .panel-h span { font-size: 0.75rem; color: var(--muted); }
+    .panel-b { padding: 14px 16px 18px; }
+    .chart-box { position: relative; height: 280px; }
+    .chart-box.tall { height: 320px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #eef1f4; font-size: 0.84rem; }
+    th {
+      font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em;
+      color: var(--muted); font-weight: 700; background: #fafbfc;
+    }
+    tr:last-child td { border-bottom: none; }
+    .mono { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; }
+    .rank {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 24px; height: 24px; border-radius: 999px; font-size: 0.72rem; font-weight: 800;
+      background: rgba(1,169,130,0.12); color: var(--green-dark);
+    }
+    .rank.gold { background: rgba(196,122,18,0.15); color: var(--amber); }
+    .rank.silver { background: rgba(98,112,124,0.15); color: #4b5863; }
+    .rank.bronze { background: rgba(166,100,60,0.16); color: #8a4f28; }
+    .bar-cell { min-width: 120px; }
+    .bar {
+      height: 8px; border-radius: 999px; background: #e8edf1; overflow: hidden;
+    }
+    .bar > i {
+      display: block; height: 100%; background: linear-gradient(90deg, var(--green), #35c4a0);
+      border-radius: 999px;
+    }
+    .empty { padding: 40px; text-align: center; color: var(--muted); }
+    .loading { padding: 48px; text-align: center; color: var(--muted); }
+  </style>
+  <link rel="stylesheet" href="/platform-tools-dark.css" />
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark">GL</div>
+      <div>
+        <h1>Audit Analytics</h1>
+        <p>Engineer usage · Tools · Cases</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <span class="who" id="whoAmI"></span>
+      <button type="button" id="themeToggle" class="gl-theme-toggle" aria-label="Toggle theme">
+        <span class="theme-icon theme-icon-light" aria-hidden="true">&#9728;</span>
+        <span class="theme-icon theme-icon-dark" aria-hidden="true">&#9790;</span>
+      </button>
+      <a class="btn" href="/admin/audit">Raw logs</a>
+      <a class="btn" href="/admin/users">Users</a>
+      <a class="btn" href="/GreenLakeTools.html">← Tools</a>
+      <a class="btn" href="/logout">Logout</a>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="hero">
+      <div>
+        <h2>Usage intelligence</h2>
+        <p>Who runs the most actions, which tools are hottest, and daily volume — from Action Audit.</p>
+      </div>
+      <div class="range" id="rangeBtns">
+        <button type="button" class="btn" data-days="7">7 days</button>
+        <button type="button" class="btn active" data-days="30">30 days</button>
+        <button type="button" class="btn" data-days="90">90 days</button>
+        <button type="button" class="btn" data-days="365">1 year</button>
+      </div>
+    </div>
+
+    <div id="root" class="loading">Loading analytics…</div>
+  </div>
+
+  <script>
+    let days = 30;
+    let charts = [];
+
+    function esc(s) {
+      return String(s == null ? "" : s)
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function destroyCharts() {
+      charts.forEach(function (c) { try { c.destroy(); } catch (e) {} });
+      charts = [];
+    }
+
+    function palette(n) {
+      const base = ["#01a982", "#0d7ac7", "#c47a12", "#6b5b95", "#2a9d8f", "#e76f51", "#457b9d", "#264653"];
+      const out = [];
+      for (let i = 0; i < n; i++) out.push(base[i % base.length]);
+      return out;
+    }
+
+    function rankClass(i) {
+      if (i === 0) return "gold";
+      if (i === 1) return "silver";
+      if (i === 2) return "bronze";
+      return "";
+    }
+
+    function render(data) {
+      destroyCharts();
+      const s = data.summary || {};
+      const eng = data.by_engineer || [];
+      const tools = data.by_tool || [];
+      const byDay = data.by_day || [];
+      const byAction = data.by_action || [];
+      const topCases = data.top_cases || [];
+      const maxEng = eng.length ? eng[0].actions : 1;
+      const top = s.top_engineer;
+
+      const root = document.getElementById("root");
+      if (!s.total_actions) {
+        root.innerHTML = '<div class="empty">No audit actions in this range yet. Run a few tool lookups with case numbers, then refresh.</div>';
+        return;
+      }
+
+      root.innerHTML =
+        '<div class="kpis">' +
+          '<div class="kpi"><div class="label">Total actions</div><div class="value">' + esc(s.total_actions) + '</div><div class="sub">Last ' + esc(data.days) + ' days</div></div>' +
+          '<div class="kpi"><div class="label">Engineers</div><div class="value">' + esc(s.unique_engineers) + '</div><div class="sub">Unique usernames</div></div>' +
+          '<div class="kpi"><div class="label">Cases</div><div class="value">' + esc(s.unique_cases) + '</div><div class="sub">Distinct case numbers</div></div>' +
+          '<div class="kpi"><div class="label">Tools used</div><div class="value">' + esc(s.unique_tools) + '</div><div class="sub">Across the platform</div></div>' +
+          '<div class="kpi"><div class="label">Today</div><div class="value">' + esc(s.actions_today) + '</div><div class="sub">' +
+            (top ? ('Top: ' + esc(top.display_name || top.username) + ' · ' + esc(top.actions)) : 'No leader yet') +
+          '</div></div>' +
+        '</div>' +
+
+        '<div class="grid">' +
+          '<div class="panel"><div class="panel-h"><h3>Actions over time</h3><span>Daily volume</span></div><div class="panel-b"><div class="chart-box"><canvas id="chartDay"></canvas></div></div></div>' +
+          '<div class="panel"><div class="panel-h"><h3>Tool mix</h3><span>Share of actions</span></div><div class="panel-b"><div class="chart-box"><canvas id="chartTool"></canvas></div></div></div>' +
+        '</div>' +
+
+        '<div class="grid">' +
+          '<div class="panel"><div class="panel-h"><h3>Engineer leaderboard</h3><span>Most active users</span></div>' +
+            '<div class="panel-b" style="padding:0"><div style="overflow:auto;max-height:420px"><table><thead><tr>' +
+            '<th>#</th><th>Engineer</th><th>Actions</th><th>Cases</th><th>Tools</th><th>Activity</th><th>Last</th>' +
+            '</tr></thead><tbody>' +
+            eng.map(function (row, i) {
+              const pct = Math.max(4, Math.round((row.actions / maxEng) * 100));
+              return '<tr>' +
+                '<td><span class="rank ' + rankClass(i) + '">' + (i + 1) + '</span></td>' +
+                '<td><strong>' + esc(row.display_name || row.username) + '</strong><div class="mono" style="color:#777">' + esc(row.username) + '</div></td>' +
+                '<td><strong>' + esc(row.actions) + '</strong></td>' +
+                '<td>' + esc(row.cases) + '</td>' +
+                '<td>' + esc(row.tools) + '</td>' +
+                '<td class="bar-cell"><div class="bar"><i style="width:' + pct + '%"></i></div></td>' +
+                '<td class="mono">' + esc((row.last_action || "").replace("T", " ").slice(0, 19)) + '</td>' +
+                '</tr>';
+            }).join("") +
+            '</tbody></table></div></div></div>' +
+          '<div class="panel"><div class="panel-h"><h3>Top engineers (chart)</h3><span>Actions by user</span></div><div class="panel-b"><div class="chart-box tall"><canvas id="chartEng"></canvas></div></div></div>' +
+        '</div>' +
+
+        '<div class="grid">' +
+          '<div class="panel"><div class="panel-h"><h3>Action types</h3><span>lookup · generate · copy…</span></div><div class="panel-b"><div class="chart-box"><canvas id="chartAction"></canvas></div></div></div>' +
+          '<div class="panel"><div class="panel-h"><h3>Hottest cases</h3><span>Most referenced case numbers</span></div>' +
+            '<div class="panel-b" style="padding:0"><div style="overflow:auto;max-height:320px"><table><thead><tr><th>Case #</th><th>Actions</th><th>Engineers</th></tr></thead><tbody>' +
+            (topCases.length ? topCases.map(function (c) {
+              return '<tr><td class="mono"><strong>' + esc(c.case_number) + '</strong></td><td>' + esc(c.count) + '</td><td>' + esc(c.engineers) + '</td></tr>';
+            }).join("") : '<tr><td colspan="3" class="empty">No case numbers yet.</td></tr>') +
+            '</tbody></table></div></div></div>' +
+        '</div>';
+
+      const dayLabels = byDay.map(function (d) { return d.day; });
+      const dayVals = byDay.map(function (d) { return d.actions; });
+      charts.push(new Chart(document.getElementById("chartDay"), {
+        type: "line",
+        data: {
+          labels: dayLabels,
+          datasets: [{
+            label: "Actions",
+            data: dayVals,
+            borderColor: "#01a982",
+            backgroundColor: "rgba(1,169,130,0.15)",
+            fill: true,
+            tension: 0.35,
+            pointRadius: dayLabels.length > 40 ? 0 : 3,
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { maxTicksLimit: 8, color: "#62707c" }, grid: { display: false } },
+            y: { beginAtZero: true, ticks: { precision: 0, color: "#62707c" }, grid: { color: "rgba(0,0,0,0.05)" } }
+          }
+        }
+      }));
+
+      charts.push(new Chart(document.getElementById("chartTool"), {
+        type: "doughnut",
+        data: {
+          labels: tools.map(function (t) { return t.tool; }),
+          datasets: [{
+            data: tools.map(function (t) { return t.actions; }),
+            backgroundColor: palette(tools.length),
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { position: "right", labels: { boxWidth: 12, font: { size: 11 } } }
+          }
+        }
+      }));
+
+      const topN = eng.slice(0, 12);
+      charts.push(new Chart(document.getElementById("chartEng"), {
+        type: "bar",
+        data: {
+          labels: topN.map(function (e) { return e.display_name || e.username; }),
+          datasets: [{
+            label: "Actions",
+            data: topN.map(function (e) { return e.actions; }),
+            backgroundColor: "#01a982",
+            borderRadius: 6,
+            maxBarThickness: 28
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: "rgba(0,0,0,0.05)" } },
+            y: { grid: { display: false } }
+          }
+        }
+      }));
+
+      charts.push(new Chart(document.getElementById("chartAction"), {
+        type: "bar",
+        data: {
+          labels: byAction.map(function (a) { return a.action; }),
+          datasets: [{
+            data: byAction.map(function (a) { return a.count; }),
+            backgroundColor: palette(byAction.length),
+            borderRadius: 6,
+            maxBarThickness: 36
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { display: false } },
+            y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: "rgba(0,0,0,0.05)" } }
+          }
+        }
+      }));
+    }
+
+    async function load() {
+      const me = await fetch("/api/auth/me", { credentials: "include" });
+      if (me.status === 401) {
+        window.location.href = "/login?next=/admin/audit-dashboard";
+        return;
+      }
+      const meData = await me.json();
+      if (meData.must_change_password) {
+        window.location.href = "/change-password";
+        return;
+      }
+      if (!meData.is_super_admin) {
+        window.location.href = "/GreenLakeTools.html";
+        return;
+      }
+      document.getElementById("whoAmI").textContent =
+        (meData.display_name || meData.username) + " · super admin";
+
+      document.getElementById("root").innerHTML = '<div class="loading">Loading analytics…</div>';
+      const res = await fetch("/api/admin/audit/analytics?days=" + days, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) {
+        document.getElementById("root").innerHTML =
+          '<div class="empty">' + esc(data.error || "Failed to load analytics.") + "</div>";
+        return;
+      }
+      render(data);
+    }
+
+    document.getElementById("rangeBtns").addEventListener("click", function (e) {
+      const btn = e.target.closest("button[data-days]");
+      if (!btn) return;
+      days = parseInt(btn.getAttribute("data-days"), 10) || 30;
+      document.querySelectorAll("#rangeBtns .btn").forEach(function (b) {
+        b.classList.toggle("active", b === btn);
+      });
+      load();
+    });
+
+    load();
+  </script>
+</body>
+</html>

@@ -123,6 +123,8 @@
   }
 
   function checkAdminMentorCard() {
+    /* Platform Tools home uses /api/auth/me tile grants instead. */
+    if (window.__PLATFORM_TILE_AUTH__) return;
     var fb = document.getElementById("tile-feedback-inbox");
     var dsat = document.getElementById("tile-dsat-analyzer");
     if (!fb && !dsat) return;

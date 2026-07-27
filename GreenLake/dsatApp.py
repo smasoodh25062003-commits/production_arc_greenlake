@@ -25,8 +25,8 @@ def _lock_unauthenticated_flask_dsat():
     return (
         jsonify(
             {
-                "error": "DSAT Alert Analyzer requires admin login. Open /gldash/mentors/dsat after signing in at /gldash/login.",
-                "login": "/gldash/login",
+                "error": "DSAT Alert Analyzer requires Platform Tools login. Open /gldash/mentors/dsat after signing in at /login.",
+                "login": "/login",
                 "api": "/gldash/api/dsat/",
             }
         ),

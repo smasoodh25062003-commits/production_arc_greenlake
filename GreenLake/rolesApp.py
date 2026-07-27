@@ -112,16 +112,25 @@ def _fetch_roles_row(session: requests.Session, email: str, customer: dict) -> d
 
 @roles_bp.route("/api/roles-stream", methods=["POST"])
 def roles_stream():
-    body = request.get_json(force=True)
+    body = request.get_json(force=True) or {}
+    from platform_audit import require_case_number, log_from_request, capture_audit_actor
+
+    case_number, err = require_case_number(body)
+    if err:
+        return err
+
     parsed_headers = body.get("parsed_headers", {}) or {}
     emails = _parse_emails(body.get("emails"))
 
     if not emails:
         return jsonify({"error": "At least one user email is required."}), 400
 
+    actor = capture_audit_actor()
     extra_headers = _headers(parsed_headers)
 
     def generate():
+        from platform_audit import summarize_list_payload
+
         rows: list[dict[str, str]] = []
         total_users = len(emails)
 
@@ -176,8 +185,19 @@ def roles_stream():
 
         total_tasks = len(tasks)
         if not total_tasks:
+            out = {"rows": rows, "user_count": total_users, "row_count": len(rows)}
+            log_from_request(
+                tool="roles",
+                action="lookup",
+                case_number=case_number,
+                detail=f"emails={len(emails)} rows={len(rows)}",
+                status="ok",
+                request_input={"emails": emails},
+                response_output=summarize_list_payload(out),
+                actor=actor,
+            )
             yield f"data: {json.dumps({'type': 'progress', 'pct': 100, 'phase': 'done'})}\n\n"
-            yield f"data: {json.dumps({'type': 'done', 'data': {'rows': rows, 'user_count': total_users, 'row_count': len(rows)}})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'data': out})}\n\n"
             return
 
         yield f"data: {json.dumps({'type': 'progress', 'pct': 30, 'phase': 'roles', 'msg': f'Fetching roles for {total_tasks} workspace(s)...'})}\n\n"
@@ -197,8 +217,19 @@ def roles_stream():
                 yield f"data: {json.dumps({'type': 'progress', 'pct': pct, 'phase': 'workspace', 'user': row['user'], 'workspace': row['workspace'], 'current': completed, 'total': total_tasks})}\n\n"
                 yield f"data: {json.dumps({'type': 'row', 'row': row})}\n\n"
 
+        out = {"rows": rows, "user_count": total_users, "row_count": len(rows)}
+        log_from_request(
+            tool="roles",
+            action="lookup",
+            case_number=case_number,
+            detail=f"emails={len(emails)} rows={len(rows)}",
+            status="ok",
+            request_input={"emails": emails},
+            response_output=summarize_list_payload(out),
+            actor=actor,
+        )
         yield f"data: {json.dumps({'type': 'progress', 'pct': 100, 'phase': 'done', 'current': total_users, 'total': total_users})}\n\n"
-        yield f"data: {json.dumps({'type': 'done', 'data': {'rows': rows, 'user_count': total_users, 'row_count': len(rows)}})}\n\n"
+        yield f"data: {json.dumps({'type': 'done', 'data': out})}\n\n"
 
     return Response(
         generate(),
