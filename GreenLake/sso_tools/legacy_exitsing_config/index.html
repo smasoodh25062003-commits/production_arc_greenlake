@@ -387,7 +387,7 @@ const STEPS = [
   {id:'nameid',      n:6, name:'NameID',                     sub:'User identifier — verify vs GreenLake',      icon:'👤'},
   {id:'firstname',   n:7, name:'First Name',                 sub:'Verify attribute vs GreenLake profile',      icon:'🪪'},
   {id:'lastname',    n:8, name:'Last Name',                  sub:'Verify attribute vs GreenLake profile',      icon:'🪪'},
-  {id:'hpe_ccs',     n:9, name:'hpe_ccs_attribute',          sub:'Role & scope mapping — coming soon',         icon:'🔧'},
+  {id:'hpe_ccs',     n:9, name:'hpe_ccs_attribute',          sub:'Role & scope mapping — compare with the Okta string generator', icon:'🔧'},
 ];
 let S = {file:null,checks:[],status:{},manual:{},cur:-1,started:false,open:new Set()};
 function api(){ return (document.getElementById('apiUrl').value||'http://localhost:5050').replace(/\/$/,''); }
@@ -746,10 +746,11 @@ function buildBody(step){
     }
   }
   else if(step.id==='hpe_ccs'){
-    h+=`<div class="msg info"><span class="msg-ico">ℹ️</span><div class="msg-txt">${esc(data.note||'Skipped.')}</div></div>`;
+    h+=`<div class="msg info"><span class="msg-ico">ℹ️</span><div class="msg-txt">${esc(data.instruction||data.note||'Compare this value with the Okta string generator.')}</div></div>`;
+    h+=`<div style="margin-top:10px"><a class="btn-nxt" href="/sso-tools/okta" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex">Open Okta string generator →</a></div>`;
     if(data.found&&data.found!=='(not found)'){
       h+=`<div class="cmp-box" style="margin-top:10px">
-        <div class="cmp-lbl">Raw Value (reference only)</div>
+        <div class="cmp-lbl">SAML value — compare with generated string</div>
         <div class="cmp-val hi" style="font-size:10px;white-space:pre-wrap">${esc(data.found)}</div>
       </div>`;
     } else if(data.not_found_reason){
@@ -757,6 +758,10 @@ function buildBody(step){
         <strong style="color:var(--text)">⚠ hpe_ccs_attribute not found:</strong> ${esc(data.not_found_reason)}
       </div>`;
     }
+    h+=`<div class="manual-actions" style="margin-top:14px">
+      <button class="btn-ok"  onclick="manualDone('${step.id}','pass')">✓ Matches generated string</button>
+      <button class="btn-bad" onclick="manualDone('${step.id}','fail')">✗ Mismatch — Update IdP</button>
+    </div>`;
   }
   if(isCur){
     const d=S.checks.find(c=>c.id===step.id);

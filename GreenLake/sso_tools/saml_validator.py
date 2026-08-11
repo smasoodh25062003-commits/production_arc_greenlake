@@ -1089,19 +1089,31 @@ def parse_and_validate(raw: bytes, filename: str) -> dict:
         },
         # 9 — hpe_ccs
         {
-            "id": "hpe_ccs", "step": 9, "type": "skipped",
+            "id": "hpe_ccs", "step": 9, "type": "manual",
             "name": "hpe_ccs_attribute",
-            "sub":  "Role & scope mapping — coming soon",
+            "sub":  "Role & scope mapping — compare with the Okta string generator",
             "icon": "🔧",
-            "status": "skipped",
+            "status": "manual",
+            "attr_name":   "hpe_ccs_attribute",
+            "attr_label":  "hpe_ccs_attribute",
             "found":  str(hpe_ccs) if hpe_ccs else "(not found)",
             "not_found_reason": (
                 not_found_note("hpe_ccs_attribute", ["hpe_ccs","hpeccs","ccs"],
                                plain_attrs, schema_attrs)
                 if not hpe_ccs else None
             ),
-            "note":   "Full hpe_ccs_attribute validation will be implemented in a future release.",
-            "allow_manual": False,
+            "note": (
+                "This page does not auto-validate role and scope mapping. "
+                "Use the Okta role string generator to build the expected "
+                "hpe_ccs_attribute, then compare it with this SAML value."
+            ),
+            "instruction": (
+                "Open the Okta string generator, recreate the intended "
+                "workspace and service roles, and confirm the generated "
+                "string matches this SAML attribute."
+            ),
+            "generator_path": "/okta",
+            "allow_manual": True,
         },
     ]
 

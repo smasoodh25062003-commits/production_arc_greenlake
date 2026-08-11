@@ -371,12 +371,22 @@
       if (c.not_found_reason) {
         parts.push(`<div class="saml-note">${escapeHtml(c.not_found_reason)}</div>`);
       }
-      if (c.instruction) {
+      if (c.id === "hpe_ccs") {
+        const genPath = c.generator_path || "/okta";
+        const oktaUrl = apiBase() + (genPath.startsWith("/") ? genPath : "/" + genPath);
+        parts.push(
+          `<div class="saml-ccs-help">` +
+          `<div class="saml-note">${escapeHtml(c.instruction || c.note || "")}</div>` +
+          `<a class="btn btn-primary saml-okta-cta" href="${escapeAttr(oktaUrl)}" target="_blank" rel="noopener">` +
+          `Open Okta string generator` +
+          `</a></div>`
+        );
+      } else if (c.instruction) {
         parts.push(`<div class="saml-note">${escapeHtml(stripTags(c.instruction))}</div>`);
       }
     }
 
-    if (c.note) {
+    if (c.note && c.id !== "hpe_ccs") {
       const fixCls = c.status === "pass" ? "saml-fix is-pass" : "saml-fix";
       parts.push(`<div class="${fixCls}"><span class="saml-fix-label">Note</span>${escapeHtml(c.note)}</div>`);
     }
@@ -386,10 +396,12 @@
 
     if (c.type === "manual" && c.status === "manual") {
       const d = state.manualDecision[c.id];
+      const passLabel = c.id === "hpe_ccs" ? "Strings match" : "Verified OK";
+      const failLabel = "Mismatch";
       parts.push(
         `<div class="saml-manual-actions" data-manual-id="${escapeAttr(c.id)}">` +
-        `<button type="button" class="${d === "pass" ? "is-pass" : ""}" data-decision="pass">Verified OK</button>` +
-        `<button type="button" class="${d === "fail" ? "is-fail" : ""}" data-decision="fail">Mismatch</button>` +
+        `<button type="button" class="${d === "pass" ? "is-pass" : ""}" data-decision="pass">${escapeHtml(passLabel)}</button>` +
+        `<button type="button" class="${d === "fail" ? "is-fail" : ""}" data-decision="fail">${escapeHtml(failLabel)}</button>` +
         `</div>`
       );
     }
